@@ -25,6 +25,12 @@ classdef IteractiveDicomViewerController < handle
         oAutoScrollButtonHandle = []
         oAutoZoomSwitchHandle = []
         
+        oThresholdMinEditFieldHandle = []
+        oThresholdMaxEditFieldHandle = []
+        
+        oThresholdWindowsEditFieldHandle = []
+        oThresholdLevelEditFieldHandle = []
+        
         c1oInteractiveImagingPlanes = {} % cell array of InteractiveImagingPlane objects
     end
     
@@ -36,6 +42,30 @@ classdef IteractiveDicomViewerController < handle
             for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
                 obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setWindowLevelHandles(windowHandle, levelHandle, minHandle, maxHandle);
             end
+            
+            obj.oThresholdMinEditFieldHandle = minHandle;
+            obj.oThresholdMaxEditFieldHandle = maxHandle;
+            
+            obj.oThresholdWindowsEditFieldHandle = windowHandle;
+            obj.oThresholdLevelEditFieldHandle = levelHandle;
+        end
+        
+        function [] = setDicomImageVolume(obj, oDicomImageVolume)
+            obj.oDicomImageVolume = oDicomImageVolume;
+        end
+        
+        function [] = setDefaultThreshold(obj)
+            obj.oDicomImageVolume.setDefaultThreshold(obj);
+        end
+        
+        function [] = setDefaultImagingPlaneValues(obj)
+            %[] = ContourValidation_setDefaultImagingPlaneValue(app)
+            
+            centreCoords_mm = obj.contourValidationPatient.getCurrentContour().getContourCentroid();%app.currentVolume.getCentreCoordsOfVolume();%
+            
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setDefaultValues(obj.oDicomImageVolume, centreCoords_mm);                               
+            end 
         end
         
         function [] = autoScrollContouredSlicesButtonPushed(obj)
@@ -90,6 +120,17 @@ classdef IteractiveDicomViewerController < handle
             else
                 error('Invalid Auto Zoom Switch value');
             end            
+        end
+        
+        function [] = toggleAutoZoomSwitch(obj)
+            %[] = toggleAutoZoomSwitch(obj)            
+            if strcmp(obj.oAutoZoomSwitchHandle.Value, obj.chAutoZoomWideLabel)
+                obj.oAutoZoomSwitchHandle.Value = obj.chAutoZoomTightLabel;
+            else
+                obj.oAutoZoomSwitchHandle.Value = obj.chAutoZoomWideLabel;
+            end
+            
+            obj.autoZoomSwitchValueChanged();            
         end
         
         function [] = updateSliceLocations(obj)
@@ -191,6 +232,110 @@ classdef IteractiveDicomViewerController < handle
             end 
         end
         
+        function [] = figureWindowButtonMotion(obj)
+            % [] = figureWindowButtonMotion(obj)
+        end
+        
+        function [] = figureWindowButtonUp(obj)
+            %[] = figureWindowButtonUp(obj)
+            
+            drawnow; % needed to interupt click & drag callbacks
+            obj.bLeftMouseButtonDown = false;
+            obj.bRightMouseButtonDown = false;
+        end
+        
+        function bEventOccurred = figureWindowKeyRelease(obj, event)
+            %bEventOccurred = figureWindowKeyRelease(obj, event)
+            
+            key = event.Key;
+            bEventOccurred = true;
+            
+            switch key
+                case 'control'
+                    obj.ctrlKeyPressedDown = false;
+                case 'add'
+                    obj.toggleAutoZoomSwitch();
+                case 'equal'
+                    obj.toggleAutoZoomSwitch();
+                case 'subtract'
+                    obj.AutoScrollContouredSlicesButtonPushed();
+                otherwise
+                    bEventOccurred = false;
+            end            
+        end
+        
+        function [] = setInteractiveImagingPlanes(obj)
+            %[] = setInteractiveImagingPlanes(obj)            
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setFullAxis(obj.oDicomImageVolume);
+            end 
+            
+            % Draw contour
+            obj.drawContours();
+            
+            % Draw slice locations
+            obj.drawSliceLocations();            
+        end
+        
+        function [] = uiFigureWindowScrollWheel(obj, event, oFigureHandle)
+            %[] = uiFigureWindowScrollWheel(obj, event, oFigureHandle)
+            
+            %verticalScrollAmount = event.VerticalScrollAmount;
+            dVerticalScrollCount = event.VerticalScrollCount;
+            
+            c1oAxesHandles = obj.getAxesHandles;
+            c1oInteractivePlanes = obj.c1oInteractiveImagingPlanes;
+            
+            dSelectedIndex = obj.findAppObjectMouseIsOver(oFigureHandle, c1oAxesHandles);
+            
+            if dSelectedIndex ~= 0 % is over an axis
+                oInteractivePlane = c1oInteractivePlanes{dSelectedIndex};
+                
+                if obj.bCtrlKeyPressedDown % zooming
+                    if dVerticalScrollCount == 1
+                        % zoom out
+                        oInteractivePlane.zoomOut(obj.oDicomImageVolume);
+                    else
+                        % zoom in
+                        oInteractivePlane.zoomIn(obj.oDicomImageVolume);
+                    end
+                else % slice select
+                    if dVerticalScrollCount == 1
+                        % slice select down
+                        oInteractivePlane.decrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours);
+                    else
+                        % slice select up
+                        oInteractivePlane.incrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours);
+                    end
+                    
+                    obj.updateSliceLocations();
+                end
+            end            
+        end
+        
+        function [] = minMaxEditFieldValueChanged(obj)
+            %[] = minMaxEditFieldValueChanged(obj)            
+            obj.oDicomImageVolume.updateDisplayThresholdsFromMinMaxChange(obj);            
+            obj.updateDisplayThesholds();            
+        end
+        
+        function [] = windowLevelEditFieldValueChanged(obj)
+            %[] = windowLevelEditFieldValueChanged(obj)
+            
+            obj.oDicomImageVolume.updateDisplayThresholdsFromWindowLevelChange(obj);            
+            obj.updateDisplayThesholds();            
+        end
+
+        function [] = figureKeyPress(obj, event)
+            key = event.Key;
+            
+            if strcmp(key, 'control')
+                 obj.bCtrlKeyPressedDown = true;
+            end
+        end
+    end
+    
+    methods (Static) 
         function dSelectedIndex = findAppObjectMouseIsOver(oFigureHandle, c1oAppObjects)
             %object = findAppObjectMouseIsOver(appObjects)
             
@@ -203,10 +348,8 @@ classdef IteractiveDicomViewerController < handle
                     dSelectedIndex = dObjectIndex;
                     break;
                 end
-            end            
+            end
         end
-        
-        function [] 
     end
 end
 

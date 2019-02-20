@@ -1,427 +1,444 @@
-classdef InteractiveImagingPlane < handle
+classdef InteractiveImagingPlane < matlab.mixin.Copyable
     %InteractiveImagingPlane
     
     properties
-        axesHandle
-        axesLabelHandle
-        sliceLocationSpinnerHandle
+        oAxesHandle
+        oAxesLabelHandle
+        oSliceLocationSpinnerHandle
         
-        windowHandle
-        levelHandle
-        minHandle
-        maxHandle
+        oWindowHandle
+        oLevelHandle
+        oMinHandle
+        oMaxHandle
         
-        imageHandle
+        oImageHandle
         
-        axesTitle
+        chAxesTitle
         
-        plotHandles = {}
-        sliceLocationHandles = {}
+        c1oPlotHandles = {}
+        c1oSliceLocationHandles = {}
         
-        targetPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
-        targetPlaneRowUnitVector
-        targetPlaneColUnitVector
+        vdTargetPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
+        vdTargetPlaneRowUnitVector
+        vdTargetPlaneColUnitVector
         
-        planeNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
-        planeRowUnitVector
-        planeColUnitVector
+        vdPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
+        vdPlaneRowUnitVector
+        vdPlaneColUnitVector
         
-        sliceFlipRequired = false
-        rowFlipRequired = false
-        colFlipRequired = false
+        bSliceFlipRequired = false
+        bRowFlipRequired = false
+        bColFlipRequired = false
         
-        planeDimensionMask % [1 0 0], [0 1 0], [0 0 1], if plane is running through row, cols or slices (respectively)
-        planeDimensionNumber
-        planePixelSpacing_mm 
-        volumeNumSlices
+        vbPlaneDimensionMask % [1 0 0], [0 1 0], [0 0 1], if plane is running through row, cols or slices (respectively)
+        dPlaneDimensionNumber
+        dPlanePixelSpacing_mm 
+        dVolumeNumSlices
         
-        rowDimensionMask
-        rowDimensionNumber
-        rowPixelSpacing_mm
-        volumeNumRows
+        vbRowDimensionMask
+        dRowDimensionNumber
+        dRowPixelSpacing_mm
+        dVolumeNumRows
         
-        colDimensionMask
-        colDimensionNumber
-        colPixelSpacing_mm
-        volumeNumCols
+        vbColDimensionMask
+        dColDimensionNumber
+        dColPixelSpacing_mm
+        dVolumeNumCols
         
-        currentSliceIndex
-        minSliceIndex
-        maxSliceIndex
+        dCurrentSliceIndex
+        dMinSliceIndex
+        dMaxSliceIndex
         
-        sliceIndexIncrement = 1
+        dSliceIndexIncrement = 1
         
-        currentFieldOfView_mm
-        minFieldOfView_mm
-        maxFieldOfView_mm
+        dCurrentFieldOfView_mm
+        dMinFieldOfView_mm
+        dMaxFieldOfView_mm
         
-        fieldOfViewIncrement_mm
+        dFieldOfViewIncrement_mm
         
-        firstSliceFieldOfViewCentreCoords_mm
-        firstSliceFieldOfViewCentreIndices
+        vdFirstSliceFieldOfViewCentreCoords_mm
+        vdFirstSliceFieldOfViewCentreIndices
         
     end
     
     methods
-        function obj = InteractiveImagingPlane(axesTitle, axesHandle, axesLabelHandle, sliceLocationSpinnerHandle, targetPlaneNormalUnitVector, targetPlaneRowUnitVector, targetPlaneColUnitVector)
-            %obj = InteractiveImagingPlane(axesTitle, axesHandle, axesLabelHandle, sliceLocationSpinnerHandle, targetPlaneNormalUnitVector, targetPlaneRowUnitVector, targetPlaneColUnitVector)
+        function obj = InteractiveImagingPlane(chAxesTitle, oAxesHandle, oAxesLabelHandle, oSliceLocationSpinnerHandle, vdTargetPlaneNormalUnitVector, vdTargetPlaneRowUnitVector, vdTargetPlaneColUnitVector)
+            %obj = InteractiveImagingPlane(chAxesTitle, oAxesHandle, oAxesLabelHandle, oSliceLocationSpinnerHandle, vdTargetPlaneNormalUnitVector, vdTargetPlaneRowUnitVector, vdTargetPlaneColUnitVector)
             
-            obj.axesTitle = axesTitle;
+            obj.chAxesTitle = chAxesTitle;
             
-            obj.axesHandle = axesHandle;
-            obj.axesLabelHandle = axesLabelHandle;
-            obj.sliceLocationSpinnerHandle = sliceLocationSpinnerHandle;
+            obj.oAxesHandle = oAxesHandle;
+            obj.oAxesLabelHandle = oAxesLabelHandle;
+            obj.oSliceLocationSpinnerHandle = oSliceLocationSpinnerHandle;
             
-            obj.targetPlaneNormalUnitVector = targetPlaneNormalUnitVector; 
-            obj.targetPlaneRowUnitVector = targetPlaneRowUnitVector;
-            obj.targetPlaneColUnitVector = targetPlaneColUnitVector;
+            obj.vdTargetPlaneNormalUnitVector = vdTargetPlaneNormalUnitVector; 
+            obj.vdTargetPlaneRowUnitVector = vdTargetPlaneRowUnitVector;
+            obj.vdTargetPlaneColUnitVector = vdTargetPlaneColUnitVector;
             
-            colormap(obj.axesHandle, 'gray');
-            obj.axesHandle.Color = [0 0 0]; % black background
+            colormap(obj.oAxesHandle, 'gray');
+            obj.oAxesHandle.Color = [0 0 0]; % black background
         end
         
-        function [] = setWindowLevelHandles(obj, windowHandle, levelHandle, minHandle, maxHandle)
-            obj.windowHandle = windowHandle;
-            obj.levelHandle = levelHandle;
-            obj.minHandle = minHandle;
-            obj.maxHandle = maxHandle;
+        function [] = setNewHandles(obj, oNewInteractiveImagingPlane)
+            obj.chAxesTitle = oNewInteractiveImagingPlane.chAxesTitle;
+            
+            obj.oAxesHandle = oNewInteractiveImagingPlane.oAxesHandle;
+            obj.oAxesLabelHandle = oNewInteractiveImagingPlane.oAxesLabelHandle;
+            obj.oSliceLocationSpinnerHandle = oNewInteractiveImagingPlane.oSliceLocationSpinnerHandle;
+            
+            obj.vdTargetPlaneNormalUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneNormalUnitVector; 
+            obj.vdTargetPlaneRowUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneRowUnitVector;
+            obj.vdTargetPlaneColUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneColUnitVector;
         end
         
-        function [] = zoomIn(obj, volumeObject)
-            obj.currentFieldOfView_mm = max(obj.minFieldOfView_mm, obj.currentFieldOfView_mm - obj.fieldOfViewIncrement_mm);
-            
-            obj.setAxisLimits(volumeObject);
+        function [] = setWindowLevelHandles(obj, oWindowHandle, oLevelHandle, oMinHandle, oMaxHandle)
+            obj.oWindowHandle = oWindowHandle;
+            obj.oLevelHandle = oLevelHandle;
+            obj.oMinHandle = oMinHandle;
+            obj.oMaxHandle = oMaxHandle;
         end
         
-        function [] = zoomOut(obj, volumeObject)
-            obj.currentFieldOfView_mm = min(obj.maxFieldOfView_mm, obj.currentFieldOfView_mm + obj.fieldOfViewIncrement_mm);
+        function [] = zoomIn(obj, oDicomImageVolume)
+            obj.dCurrentFieldOfView_mm = max(obj.dMinFieldOfView_mm, obj.dCurrentFieldOfView_mm - obj.dFieldOfViewIncrement_mm);
             
-            obj.setAxisLimits(volumeObject);
+            obj.setAxisLimits(oDicomImageVolume);
         end
         
-        function [] = incrementSlice(obj, volumeObject, contour)
-            obj.currentSliceIndex = min(obj.maxSliceIndex, obj.currentSliceIndex + obj.sliceIndexIncrement);
+        function [] = zoomOut(obj, oDicomImageVolume)
+            obj.dCurrentFieldOfView_mm = min(obj.dMaxFieldOfView_mm, obj.dCurrentFieldOfView_mm + obj.dFieldOfViewIncrement_mm);
             
-            obj.setImage(volumeObject);
-            obj.drawPolygons(contour);
+            obj.setAxisLimits(oDicomImageVolume);
+        end
+        
+        function [] = incrementSlice(obj, oDicomImageVolume, c1oDicomContours)
+            obj.dCurrentSliceIndex = min(obj.dMaxSliceIndex, obj.dCurrentSliceIndex + obj.dSliceIndexIncrement);
             
-            obj.sliceLocationSpinnerHandle.Value = obj.currentSliceIndex;
+            obj.setImage(oDicomImageVolume);
+            obj.drawPolygons(c1oDicomContours);
+            
+            obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end        
         
-        function [] = decrementSlice(obj, volumeObject, contour)
-            obj.currentSliceIndex = max(obj.minSliceIndex, obj.currentSliceIndex - obj.sliceIndexIncrement);
+        function [] = decrementSlice(obj, oDicomImageVolume, c1oDicomContours)
+            obj.dCurrentSliceIndex = max(obj.dMinSliceIndex, obj.dCurrentSliceIndex - obj.dSliceIndexIncrement);
             
-            obj.setImage(volumeObject);
-            obj.drawPolygons(contour);
+            obj.setImage(oDicomImageVolume);
+            obj.drawPolygons(c1oDicomContours);
             
-            obj.sliceLocationSpinnerHandle.Value = obj.currentSliceIndex;
+            obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end
         
         function bBool = isSpinnerHandleEqual(obj, oSpinnerHandle)
-            bBool = obj.
+            bBool = obj.oSliceLocationSpinnerHandle == oSpinnerHandle;
         end
         
-        function [] = setSliceToSpinnerValue(obj, volumeObject, contour)
-            spinnerValue = obj.sliceLocationSpinnerHandle.Value;
+        function oHandle = getAxesHandle(obj)
+            oHandle = obj.oAxesHandle;
+        end
+        
+        function [] = setSliceToSpinnerValue(obj, oDicomImageVolume, c1oDicomContours)
+            dSpinnerValue = obj.oSliceLocationSpinnerHandle.Value;
             
-            if spinnerValue < obj.minSliceIndex
-                spinnerValue = obj.minSliceIndex;
-            elseif spinnerValue > obj.maxSliceIndex
-                spinnerValue = obj.maxSliceIndex;
+            if dSpinnerValue < obj.dMinSliceIndex
+                dSpinnerValue = obj.dMinSliceIndex;
+            elseif dSpinnerValue > obj.dMaxSliceIndex
+                dSpinnerValue = obj.dMaxSliceIndex;
             end
             
-            obj.currentSliceIndex = spinnerValue;
+            obj.dCurrentSliceIndex = dSpinnerValue;
             
-            obj.setImage(volumeObject);
-            obj.drawPolygons(contour);
+            obj.setImage(oDicomImageVolume);
+            obj.drawPolygons(c1oDicomContours);
             
-            obj.sliceLocationSpinnerHandle.Value = obj.currentSliceIndex;
+            obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end
         
-        function [] = setFullAxis(obj, volumeObject)
+        function [] = setFullAxis(obj, oDicomImageVolume)
             obj.deletePlottedObjects();
             
-            [slice, rowData, colData, rowLim, colLim] =...
-                volumeObject.getSlice(obj);
+            [m2dSlice, vdRowData, vdColData, vdRowLim, vdColLim] =...
+                oDicomImageVolume.getSlice(obj);
             
-            if ~isempty(obj.imageHandle)
-                delete(obj.imageHandle);
+            if ~isempty(obj.oImageHandle)
+                delete(obj.oImageHandle);
             end
             
-            obj.imageHandle = imagesc(obj.axesHandle,...
-                'XData', colData, 'YData', rowData,...
-                'CData', slice);
-            obj.axesHandle.NextPlot = 'add';
+            obj.oImageHandle = imagesc(obj.oAxesHandle,...
+                'XData', vdColData, 'YData', vdRowData,...
+                'CData', m2dSlice);
+            obj.oAxesHandle.NextPlot = 'add';
             
             obj.setThreshold();
                  
-            xlim(obj.axesHandle, colLim);
-            ylim(obj.axesHandle, rowLim);
+            xlim(obj.oAxesHandle, vdColLim);
+            ylim(obj.oAxesHandle, vdRowLim);
             
-            obj.sliceLocationSpinnerHandle.Value = obj.currentSliceIndex;
+            obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end
         
-        function [] = setAxisLimits(obj, volumeObject)
-            [rowLim, colLim] = volumeObject.getRowAndColumnLimits(obj);
+        function [] = setAxisLimits(obj, oDicomImageVolume)
+            [vdRowLim, vdColLim] = oDicomImageVolume.getRowAndColumnLimits(obj);
                         
-            obj.axesHandle.XLim = colLim;
-            obj.axesHandle.YLim = rowLim;
+            obj.oAxesHandle.XLim = vdColLim;
+            obj.oAxesHandle.YLim = vdRowLim;
         end
         
         function [] = setThreshold(obj)
-            obj.axesHandle.CLim = obj.getThreshold();
+            obj.oAxesHandle.CLim = obj.getThreshold();
         end
         
-        function [] = setImage(obj, volumeObject)            
+        function [] = setImage(obj, oDicomImageVolume)            
             obj.deletePlottedObjects();
             
-            slice = volumeObject.getSliceOnly(obj);
+            m2dSlice = oDicomImageVolume.getSliceOnly(obj);
             
-            obj.imageHandle.CData = slice;  
+            obj.oImageHandle.CData = m2dSlice;  
         end
         
-        function threshold = getThreshold(obj)
-            threshold = [obj.minHandle.Value, obj.maxHandle.Value];
+        function cdThreshold = getThreshold(obj)
+            cdThreshold = [obj.oMinHandle.Value, obj.oMaxHandle.Value];
         end
         
-        function sliceIndex = getCurrentSliceIndex(obj)
-            if obj.sliceFlipRequired
-                sliceIndex = obj.volumeNumSlices + 1 - obj.currentSliceIndex;
+        function dSliceIndex = getCurrentSliceIndex(obj)
+            if obj.bSliceFlipRequired
+                dSliceIndex = obj.dVolumeNumSlices + 1 - obj.dCurrentSliceIndex;
             else
-                sliceIndex = obj.currentSliceIndex;
+                dSliceIndex = obj.dCurrentSliceIndex;
             end
         end
         
-        function [topLeftIndices, botRightIndices] = getCurrentFieldOfViewIndices(obj, volumeObject)
-            firstSliceFieldOfViewCentreIndices = obj.firstSliceFieldOfViewCentreIndices;
-            firstSliceFieldOfViewCentreIndices(obj.planeDimensionNumber) = obj.currentSliceIndex;
+        function [vdTopLeftIndices, cdBotRightIndices] = getCurrentFieldOfViewIndices(obj, oDicomImageVolume)
+            vdFirstSliceFieldOfViewCentreIndices = obj.vdFirstSliceFieldOfViewCentreIndices;
+            vdFirstSliceFieldOfViewCentreIndices(obj.dPlaneDimensionNumber) = obj.dCurrentSliceIndex;
             
-            [x,y,z] = volumeObject.getCoordinatesFromVoxelIndices(...
-                firstSliceFieldOfViewCentreIndices(1), firstSliceFieldOfViewCentreIndices(2), firstSliceFieldOfViewCentreIndices(3));
+            [vdX,vdY,vdZ] = oDicomImageVolume.getCoordinatesFromVoxelIndices(...
+                vdFirstSliceFieldOfViewCentreIndices(1), vdFirstSliceFieldOfViewCentreIndices(2), vdFirstSliceFieldOfViewCentreIndices(3));
             
-            currentFOVCentreCoords = [x,y,z];
+            m2dCurrentFOVCentreCoords = [vdX,vdY,vdZ];
             
-            topLeftCoords = currentFOVCentreCoords - (obj.currentFieldOfView_mm/2).*(obj.planeRowUnitVector+obj.planeColUnitVector);
-            botRightCoords = currentFOVCentreCoords + (obj.currentFieldOfView_mm/2).*(obj.planeRowUnitVector+obj.planeColUnitVector);
+            vdTopLeftCoords = m2dCurrentFOVCentreCoords - (obj.dCurrentFieldOfView_mm/2).*(obj.vdPlaneRowUnitVector+obj.vdPlaneColUnitVector);
+            vdBotRightCoords = m2dCurrentFOVCentreCoords + (obj.dCurrentFieldOfView_mm/2).*(obj.vdPlaneRowUnitVector+obj.vdPlaneColUnitVector);
             
-            coords = [topLeftCoords; botRightCoords];
+            m2dCoords = [vdTopLeftCoords; vdBotRightCoords];
             
-            [i,j,k] = volumeObject.getVoxelIndicesFromCoordinates(...
-                coords(:,1), coords(:,2), coords(:,3));
+            [vdI,vdJ,vdK] = oDicomImageVolume.getVoxelIndicesFromCoordinates(...
+                m2dCoords(:,1), m2dCoords(:,2), m2dCoords(:,3));
             
-            topLeftIndices = [i(1), j(1), k(1)];
-            botRightIndices = [i(2), j(2), k(2)];
+            vdTopLeftIndices = [vdI(1), vdJ(1), vdK(1)];
+            cdBotRightIndices = [vdI(2), vdJ(2), vdK(2)];
         end
         
-        function [] = setDefaultValues(obj, volumeObject, fieldOfViewCentreCoords_mm)            
+        function [] = setDefaultValues(obj, oDicomImageVolume, vdFieldOfViewCentreCoords_mm)            
             % get unit vectors of volume indes directions
-            [rowUnitVector, colUnitVector, sliceUnitVector] = volumeObject.getVolumeUnitVectors();
-            pixelSpacingVector_mm = volumeObject.getPixelSpacingVector;
+            [vdRowUnitVector, vdColUnitVector, cdSliceUnitVector] = oDicomImageVolume.getVolumeUnitVectors();
+            vdPixelSpacingVector_mm = oDicomImageVolume.getPixelSpacingVector;
             
-            unitVectors = [rowUnitVector; colUnitVector; sliceUnitVector];
+            m2dUnitVectors = [vdRowUnitVector; vdColUnitVector; cdSliceUnitVector];
             
             % find slice unit vector
-            targetPlaneNormalDotProducts = dot(unitVectors, repmat(obj.targetPlaneNormalUnitVector, 3, 1), 2);
+            vdTargetPlaneNormalDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneNormalUnitVector, 3, 1), 2);
             
-            [~,closestMatchIndex] = max(abs(targetPlaneNormalDotProducts));
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneNormalDotProducts));
             
-            obj.planeDimensionNumber = closestMatchIndex;
-            obj.planeDimensionMask = false(1,3);
-            obj.planeDimensionMask(closestMatchIndex) = true;
-            obj.planePixelSpacing_mm = pixelSpacingVector_mm(closestMatchIndex);
-            obj.volumeNumSlices = volumeObject.volumeDimensions(closestMatchIndex);
+            obj.dPlaneDimensionNumber = dClosestMatchIndex;
+            obj.vbPlaneDimensionMask = false(1,3);
+            obj.vbPlaneDimensionMask(dClosestMatchIndex) = true;
+            obj.dPlanePixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumSlices = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
             
-            if targetPlaneNormalDotProducts(closestMatchIndex) < 0
-                obj.sliceFlipRequired = true;
-                obj.planeNormalUnitVector = -unitVectors(closestMatchIndex,:);
+            if vdTargetPlaneNormalDotProducts(dClosestMatchIndex) < 0
+                obj.bSliceFlipRequired = true;
+                obj.vdPlaneNormalUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
             else
-                obj.sliceFlipRequired = false;
-                obj.planeNormalUnitVector = unitVectors(closestMatchIndex,:);
+                obj.bSliceFlipRequired = false;
+                obj.vdPlaneNormalUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
             end
             
             % find row unit vector
-            targetPlaneRowDotProducts = dot(unitVectors, repmat(obj.targetPlaneRowUnitVector, 3, 1), 2);
+            vdTargetPlaneRowDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneRowUnitVector, 3, 1), 2);
             
-            [~,closestMatchIndex] = max(abs(targetPlaneRowDotProducts));
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneRowDotProducts));
             
-            obj.rowDimensionNumber = closestMatchIndex;
-            obj.rowDimensionMask = false(1,3);
-            obj.rowDimensionMask(closestMatchIndex) = true;
-            obj.rowPixelSpacing_mm = pixelSpacingVector_mm(closestMatchIndex);
-            obj.volumeNumRows = volumeObject.volumeDimensions(closestMatchIndex);
+            obj.dRowDimensionNumber = dClosestMatchIndex;
+            obj.vbRowDimensionMask = false(1,3);
+            obj.vbRowDimensionMask(dClosestMatchIndex) = true;
+            obj.dRowPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumRows = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
             
-            if targetPlaneRowDotProducts(closestMatchIndex) < 0
-                obj.rowFlipRequired = false;
-                obj.planeRowUnitVector = -unitVectors(closestMatchIndex,:);
+            if vdTargetPlaneRowDotProducts(dClosestMatchIndex) < 0
+                obj.bRowFlipRequired = false;
+                obj.vdPlaneRowUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
             else
-                obj.rowFlipRequired = true;
-                obj.planeRowUnitVector = unitVectors(closestMatchIndex,:);
+                obj.bRowFlipRequired = true;
+                obj.vdPlaneRowUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
             end
             
             % find col unit vector
-            targetPlaneColDotProducts = dot(unitVectors, repmat(obj.targetPlaneColUnitVector, 3, 1), 2);
+            vdTargetPlaneColDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneColUnitVector, 3, 1), 2);
             
-            [~,closestMatchIndex] = max(abs(targetPlaneColDotProducts));
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneColDotProducts));
             
-            obj.colDimensionNumber = closestMatchIndex;
-            obj.colDimensionMask = false(1,3);
-            obj.colDimensionMask(closestMatchIndex) = true;  
-            obj.colPixelSpacing_mm = pixelSpacingVector_mm(closestMatchIndex);
-            obj.volumeNumCols = volumeObject.volumeDimensions(closestMatchIndex);
+            obj.dColDimensionNumber = dClosestMatchIndex;
+            obj.vbColDimensionMask = false(1,3);
+            obj.vbColDimensionMask(dClosestMatchIndex) = true;  
+            obj.dColPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumCols = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
             
-            if targetPlaneColDotProducts(closestMatchIndex) < 0
-                obj.colFlipRequired = true;
-                obj.planeColUnitVector = -unitVectors(closestMatchIndex,:);
+            if vdTargetPlaneColDotProducts(dClosestMatchIndex) < 0
+                obj.bColFlipRequired = true;
+                obj.vdPlaneColUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
             else
-                obj.colFlipRequired = false;
-                obj.planeColUnitVector = unitVectors(closestMatchIndex,:);
+                obj.bColFlipRequired = false;
+                obj.vdPlaneColUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
             end      
             
             % set unit vectors into the slice labels
             obj.setUnitVectorsInAxisLabels();
             
             % get slice index bounds
-            obj.minSliceIndex = 1;
-            obj.maxSliceIndex = volumeObject.volumeDimensions(obj.planeDimensionMask);
+            obj.dMinSliceIndex = 1;
+            obj.dMaxSliceIndex = oDicomImageVolume.volumeDimensions(obj.vbPlaneDimensionMask);
             
-            obj.sliceLocationSpinnerHandle.Limits = [obj.minSliceIndex, obj.maxSliceIndex];
+            obj.oSliceLocationSpinnerHandle.Limits = [obj.dMinSliceIndex, obj.dMaxSliceIndex];
             
             % from the centre view of field coords, find centre of 1st
             % slice for the plane
-            [i,j,k] = volumeObject.getVoxelIndicesFromCoordinates(...
-                fieldOfViewCentreCoords_mm(1), fieldOfViewCentreCoords_mm(2), fieldOfViewCentreCoords_mm(3));
+            [vdI,vdJ,vdK] = oDicomImageVolume.getVoxelIndicesFromCoordinates(...
+                vdFieldOfViewCentreCoords_mm(1), vdFieldOfViewCentreCoords_mm(2), vdFieldOfViewCentreCoords_mm(3));
             
-            fieldOfViewCentreIndices = [i,j,k];
+            m2dFieldOfViewCentreIndices = [vdI,vdJ,vdK];
             
-            if obj.sliceFlipRequired
-                obj.currentSliceIndex = obj.maxSliceIndex - floor(fieldOfViewCentreIndices(obj.planeDimensionNumber)) + 1;    
+            if obj.bSliceFlipRequired
+                obj.dCurrentSliceIndex = obj.dMaxSliceIndex - floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber)) + 1;    
             else
-                obj.currentSliceIndex = floor(fieldOfViewCentreIndices(obj.planeDimensionNumber));    
+                obj.dCurrentSliceIndex = floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber));    
             end
             
             
             % set slice index to 1 to find FOV centre coords in 1st slice
-            fieldOfViewCentreIndices(obj.planeDimensionNumber) = 1;
+            m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber) = 1;
             
-            if obj.rowFlipRequired
-                fieldOfViewCentreIndices(obj.rowDimensionNumber) = obj.volumeNumRows - fieldOfViewCentreIndices(obj.rowDimensionNumber) + 1;
+            if obj.bRowFlipRequired
+                m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) = obj.dVolumeNumRows - m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) + 1;
             end
             
-            if obj.colFlipRequired
-                fieldOfViewCentreIndices(obj.colDimensionNumber) = obj.volumeNumCols - fieldOfViewCentreIndices(obj.colDimensionNumber) + 1;
+            if obj.bColFlipRequired
+                m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) = obj.dVolumeNumCols - m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) + 1;
             end
             
-            fieldOfViewCentreIndices = floor(fieldOfViewCentreIndices);
+            m2dFieldOfViewCentreIndices = floor(m2dFieldOfViewCentreIndices);
             
-            obj.firstSliceFieldOfViewCentreIndices = fieldOfViewCentreIndices;
+            obj.vdFirstSliceFieldOfViewCentreIndices = m2dFieldOfViewCentreIndices;
             
-            [x,y,z] = volumeObject.getCoordinatesFromVoxelIndices(...
-                fieldOfViewCentreIndices(1), fieldOfViewCentreIndices(2), fieldOfViewCentreIndices(3));
+            [vdX,vdY,vdZ] = oDicomImageVolume.getCoordinatesFromVoxelIndices(...
+                m2dFieldOfViewCentreIndices(1), m2dFieldOfViewCentreIndices(2), m2dFieldOfViewCentreIndices(3));
             
-            obj.firstSliceFieldOfViewCentreCoords_mm = [x,y,z];
+            obj.vdFirstSliceFieldOfViewCentreCoords_mm = [vdX,vdY,vdZ];
             
             % set FOV size and bounds
-            obj.maxFieldOfView_mm = max(...
-                obj.volumeNumRows .* obj.rowPixelSpacing_mm,...
-                obj.volumeNumCols .* obj.colPixelSpacing_mm);
+            obj.dMaxFieldOfView_mm = max(...
+                obj.dVolumeNumRows .* obj.dRowPixelSpacing_mm,...
+                obj.dVolumeNumCols .* obj.dColPixelSpacing_mm);
             
-            obj.currentFieldOfView_mm = obj.maxFieldOfView_mm;
+            obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm;
             
-            obj.minFieldOfView_mm = min(obj.rowPixelSpacing_mm, obj.colPixelSpacing_mm);
+            obj.dMinFieldOfView_mm = min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
                         
-            obj.fieldOfViewIncrement_mm = floor(min(obj.volumeNumRows,obj.volumeNumCols)/25)*min(obj.rowPixelSpacing_mm, obj.colPixelSpacing_mm);
+            obj.dFieldOfViewIncrement_mm = floor(min(obj.dVolumeNumRows,obj.dVolumeNumCols)/25)*min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
         end
         
         function [] = setUnitVectorsInAxisLabels(obj)
-            label = [obj.axesTitle, ' [', num2str(obj.planeNormalUnitVector(1)), ', ', num2str(obj.planeNormalUnitVector(2)), ', ', num2str(obj.planeNormalUnitVector(3)), ']'];
+            chLabel = [obj.chAxesTitle, ' [', num2str(obj.vdPlaneNormalUnitVector(1)), ', ', num2str(obj.vdPlaneNormalUnitVector(2)), ', ', num2str(obj.vdPlaneNormalUnitVector(3)), ']'];
             
-            obj.axesLabelHandle.Text = label;
+            obj.oAxesLabelHandle.Text = chLabel;
         end
         
-        function [] = drawPolygons(obj, contour)
-            polygonVertexIndices = contour.getPolygonIndicesWithinImagingPlane(obj);
+        function [] = drawPolygons(obj, c1oDicomContours)
+            error('Need to support multiple contour support');
+            c1m2dPolygonVertexIndices = c1oDicomContours.getPolygonIndicesWithinImagingPlane(obj);
                        
             
-            numPolygons = length(polygonVertexIndices);
+            dNumPolygons = length(c1m2dPolygonVertexIndices);
             
-            if numPolygons ~= 0 % render the polygons!
-                rowMask = obj.rowDimensionMask;
-                rowMask(obj.planeDimensionNumber) = [];
+            if dNumPolygons ~= 0 % render the polygons!
+                vbRowMask = obj.vbRowDimensionMask;
+                vbRowMask(obj.dPlaneDimensionNumber) = [];
                 
-                colMask = obj.colDimensionMask;
-                colMask(obj.planeDimensionNumber) = [];
+                vbColMask = obj.vbColDimensionMask;
+                vbColMask(obj.dPlaneDimensionNumber) = [];
                 
-                plotHandles = cell(numPolygons,1);
+                c1oPlotHandles = cell(dNumPolygons,1);
                 
-                for i=1:numPolygons
-                    indices = polygonVertexIndices{i};
+                for dPolygonIndex=1:dNumPolygons
+                    m2dIndices = c1m2dPolygonVertexIndices{dPolygonIndex};
                     
-                    rowIndices = [indices(:,rowMask);indices(1,rowMask)];
-                    colIndices = [indices(:,colMask);indices(1,colMask)];
+                    m2dRowIndices = [m2dIndices(:,vbRowMask);m2dIndices(1,vbRowMask)];
+                    m2dColIndices = [m2dIndices(:,vbColMask);m2dIndices(1,vbColMask)];
                     
-                    if obj.rowFlipRequired
-                        rowIndices = obj.volumeNumRows - rowIndices + 1;
+                    if obj.bRowFlipRequired
+                        m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
                     end
                     
-                    if obj.colFlipRequired
-                        colIndices = obj.volumeNumCols - colIndices + 1;
+                    if obj.bColFlipRequired
+                        m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
                     end
                     
-                    plotHandles{i} = plot(obj.axesHandle,colIndices,rowIndices,'-','Color',[1 0 0]);
+                    c1oPlotHandles{dPolygonIndex} = plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'-','Color',[1 0 0]);
                 end
             else % look for any points within the current slice and render those (unconnected)
-                pointIndices = contour.getAnyIndicesWithinImagingPlane(obj);
+                m2dPointIndices = c1oDicomContours.getAnyIndicesWithinImagingPlane(obj);
                 
-                rowMask = obj.rowDimensionMask;                
-                colMask = obj.colDimensionMask;
+                vbRowMask = obj.vbRowDimensionMask;                
+                vbColMask = obj.vbColDimensionMask;
                 
-                rowIndices = pointIndices(:,rowMask);
-                colIndices = pointIndices(:,colMask);
+                m2dRowIndices = m2dPointIndices(:,vbRowMask);
+                m2dColIndices = m2dPointIndices(:,vbColMask);
                 
-                if obj.rowFlipRequired
-                    rowIndices = obj.volumeNumRows - rowIndices + 1;
+                if obj.bRowFlipRequired
+                    m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
                 end
                 
-                if obj.colFlipRequired
-                    colIndices = obj.volumeNumCols - colIndices + 1;
+                if obj.bColFlipRequired
+                    m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
                 end
                 
-                plotHandles = {plot(obj.axesHandle,colIndices,rowIndices,'.','Color',[1 0 0])};
+                c1oPlotHandles = {plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'.','Color',[1 0 0])};
             end
             
-            obj.plotHandles = plotHandles;
+            obj.c1oPlotHandles = c1oPlotHandles;
         end
         
         function [] = deletePlottedObjects(obj)
-            for i=1:length(obj.plotHandles)
-                delete(obj.plotHandles{i});
+            for dPlotIndex=1:length(obj.c1oPlotHandles)
+                delete(obj.c1oPlotHandles{dPlotIndex});
             end
             
-            obj.plotHandles = {};
+            obj.c1oPlotHandles = {};
         end
         
         function [] = deleteSliceLocations(obj)
-            for i=1:length(obj.sliceLocationHandles)
-                delete(obj.sliceLocationHandles{i});
+            for i=1:length(obj.c1oSliceLocationHandles)
+                delete(obj.c1oSliceLocationHandles{i});
             end
             
-            obj.sliceLocationHandles = {};
+            obj.c1oSliceLocationHandles = {};
         end
         
         function [] = drawSliceLocations(obj, planeObjects)
             obj.deleteSliceLocations();
             
             numPlanes = length(planeObjects);
-            sliceLocationHandles = cell(numPlanes,1);
+            c1oSliceLocationHandles = cell(numPlanes,1);
             
             for i=1:numPlanes
                 [rowVals, colVals] = getSliceLocationCoords(obj, planeObjects{i});
                 
-                sliceLocationHandles{i} = ...
-                    plot(obj.axesHandle, colVals, rowVals,'-','Color', [1 1 0]);
+                c1oSliceLocationHandles{i} = ...
+                    plot(obj.oAxesHandle, colVals, rowVals,'-','Color', [1 1 0]);
             end
             
-            obj.sliceLocationHandles = sliceLocationHandles;
+            obj.c1oSliceLocationHandles = c1oSliceLocationHandles;
         end
         
         function [] = updateSliceLocations(obj, planeObjects)            
@@ -430,13 +447,13 @@ classdef InteractiveImagingPlane < handle
             for i=1:numPlanes
                 [rowVals, colVals] = getSliceLocationCoords(obj, planeObjects{i});
                 
-                obj.sliceLocationHandles{i}.XData = colVals;
-                obj.sliceLocationHandles{i}.YData = rowVals;
+                obj.c1oSliceLocationHandles{i}.XData = colVals;
+                obj.c1oSliceLocationHandles{i}.YData = rowVals;
             end
         end
         
         function [] = updateThresholdFromMouse(obj, mousePosition, volumeObject)
-            posVector = getNormalizedPositionVectorFromObjectCorner(obj.axesHandle, mousePosition);
+            posVector = getNormalizedPositionVectorFromObjectCorner(obj.oAxesHandle, mousePosition);
                         
             posVector(posVector>1) = 1;
             posVector(posVector<0) = 0;
@@ -444,63 +461,63 @@ classdef InteractiveImagingPlane < handle
             newLevel = posVector(2)*volumeObject.maxWindow + volumeObject.minLevel;
             newWindow = posVector(1)*volumeObject.maxWindow;
             
-            obj.windowHandle.Value = newWindow;
-            obj.levelHandle.Value = newLevel;
+            obj.oWindowHandle.Value = newWindow;
+            obj.oLevelHandle.Value = newLevel;
             
-            obj.minHandle.Value = newLevel - newWindow/2;
-            obj.maxHandle.Value = newLevel + newWindow/2;
+            obj.oMinHandle.Value = newLevel - newWindow/2;
+            obj.oMaxHandle.Value = newLevel + newWindow/2;
         end
         
         function [] = matchExistingPlane(obj, existPlaneObject)
-            obj.planeNormalUnitVector = existPlaneObject.planeNormalUnitVector;
-            obj.planeRowUnitVector = existPlaneObject.planeRowUnitVector;
-            obj.planeColUnitVector = existPlaneObject.planeColUnitVector;
+            obj.vdPlaneNormalUnitVector = existPlaneObject.vdPlaneNormalUnitVector;
+            obj.vdPlaneRowUnitVector = existPlaneObject.vdPlaneRowUnitVector;
+            obj.vdPlaneColUnitVector = existPlaneObject.vdPlaneColUnitVector;
             
-            obj.sliceFlipRequired = existPlaneObject.sliceFlipRequired;
-            obj.rowFlipRequired = existPlaneObject.rowFlipRequired;
-            obj.colFlipRequired = existPlaneObject.colFlipRequired;
+            obj.bSliceFlipRequired = existPlaneObject.bSliceFlipRequired;
+            obj.bRowFlipRequired = existPlaneObject.bRowFlipRequired;
+            obj.bColFlipRequired = existPlaneObject.bColFlipRequired;
             
-            obj.planeDimensionMask = existPlaneObject.planeDimensionMask;
-            obj.planeDimensionNumber = existPlaneObject.planeDimensionNumber;
-            obj.planePixelSpacing_mm = existPlaneObject.planePixelSpacing_mm;
-            obj.volumeNumSlices = existPlaneObject.volumeNumSlices;
+            obj.vbPlaneDimensionMask = existPlaneObject.vbPlaneDimensionMask;
+            obj.dPlaneDimensionNumber = existPlaneObject.dPlaneDimensionNumber;
+            obj.dPlanePixelSpacing_mm = existPlaneObject.dPlanePixelSpacing_mm;
+            obj.dVolumeNumSlices = existPlaneObject.dVolumeNumSlices;
             
-            obj.rowDimensionMask = existPlaneObject.rowDimensionMask;
-            obj.rowDimensionNumber = existPlaneObject.rowDimensionNumber;
-            obj.rowPixelSpacing_mm = existPlaneObject.rowPixelSpacing_mm;
-            obj.volumeNumRows = existPlaneObject.volumeNumRows;
+            obj.vbRowDimensionMask = existPlaneObject.vbRowDimensionMask;
+            obj.dRowDimensionNumber = existPlaneObject.dRowDimensionNumber;
+            obj.dRowPixelSpacing_mm = existPlaneObject.dRowPixelSpacing_mm;
+            obj.dVolumeNumRows = existPlaneObject.dVolumeNumRows;
             
-            obj.colDimensionMask = existPlaneObject.colDimensionMask;
-            obj.colDimensionNumber = existPlaneObject.colDimensionNumber;
-            obj.colPixelSpacing_mm = existPlaneObject.colPixelSpacing_mm;
-            obj.volumeNumCols = existPlaneObject.volumeNumCols;
+            obj.vbColDimensionMask = existPlaneObject.vbColDimensionMask;
+            obj.dColDimensionNumber = existPlaneObject.dColDimensionNumber;
+            obj.dColPixelSpacing_mm = existPlaneObject.dColPixelSpacing_mm;
+            obj.dVolumeNumCols = existPlaneObject.dVolumeNumCols;
             
-            obj.currentSliceIndex = existPlaneObject.currentSliceIndex;
-            obj.minSliceIndex = existPlaneObject.minSliceIndex;
-            obj.maxSliceIndex = existPlaneObject.maxSliceIndex;
+            obj.dCurrentSliceIndex = existPlaneObject.dCurrentSliceIndex;
+            obj.dMinSliceIndex = existPlaneObject.dMinSliceIndex;
+            obj.dMaxSliceIndex = existPlaneObject.dMaxSliceIndex;
             
-            obj.sliceIndexIncrement = existPlaneObject.sliceIndexIncrement;
+            obj.dSliceIndexIncrement = existPlaneObject.dSliceIndexIncrement;
             
-            obj.currentFieldOfView_mm = existPlaneObject.currentFieldOfView_mm ;
-            obj.minFieldOfView_mm = existPlaneObject.minFieldOfView_mm;
-            obj.maxFieldOfView_mm = existPlaneObject.maxFieldOfView_mm;
+            obj.dCurrentFieldOfView_mm = existPlaneObject.dCurrentFieldOfView_mm ;
+            obj.dMinFieldOfView_mm = existPlaneObject.dMinFieldOfView_mm;
+            obj.dMaxFieldOfView_mm = existPlaneObject.dMaxFieldOfView_mm;
             
-            obj.fieldOfViewIncrement_mm = existPlaneObject.fieldOfViewIncrement_mm;
+            obj.dFieldOfViewIncrement_mm = existPlaneObject.dFieldOfViewIncrement_mm;
             
-            obj.firstSliceFieldOfViewCentreCoords_mm = existPlaneObject.firstSliceFieldOfViewCentreCoords_mm ;
-            obj.firstSliceFieldOfViewCentreIndices = existPlaneObject.firstSliceFieldOfViewCentreIndices;
+            obj.vdFirstSliceFieldOfViewCentreCoords_mm = existPlaneObject.vdFirstSliceFieldOfViewCentreCoords_mm ;
+            obj.vdFirstSliceFieldOfViewCentreIndices = existPlaneObject.vdFirstSliceFieldOfViewCentreIndices;
         end
         
         function [] = setFieldOfViewToMax(obj, volumeObject)
-            obj.currentFieldOfView_mm = obj.maxFieldOfView_mm;
+            obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm;
             
             obj.setAxisLimits(volumeObject);
         end
         
         function [] = setFieldOfViewToValue(obj, fieldOfView_mm, volumeObject)
-            numIncrements = round((obj.maxFieldOfView_mm - fieldOfView_mm) ./ obj.fieldOfViewIncrement_mm);
+            numIncrements = round((obj.dMaxFieldOfView_mm - fieldOfView_mm) ./ obj.dFieldOfViewIncrement_mm);
             
-            obj.currentFieldOfView_mm = obj.maxFieldOfView_mm - numIncrements .* obj.fieldOfViewIncrement_mm;
+            obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm - numIncrements .* obj.dFieldOfViewIncrement_mm;
             
             obj.setAxisLimits(volumeObject);
         end
@@ -509,23 +526,23 @@ end
 
 % ** HELPER FUNCTIONS **
 function [rowVals, colVals] = getSliceLocationCoords(obj, sliceBeingDrawnObj)
-    if sliceBeingDrawnObj.planeDimensionNumber == obj.rowDimensionNumber
-        if obj.rowFlipRequired == sliceBeingDrawnObj.sliceFlipRequired
-            sliceIndex = sliceBeingDrawnObj.currentSliceIndex;
+    if sliceBeingDrawnObj.dPlaneDimensionNumber == obj.dRowDimensionNumber
+        if obj.bRowFlipRequired == sliceBeingDrawnObj.bSliceFlipRequired
+            sliceIndex = sliceBeingDrawnObj.dCurrentSliceIndex;
         else
-            sliceIndex = sliceBeingDrawnObj.maxSliceIndex - sliceBeingDrawnObj.currentSliceIndex + 1;
+            sliceIndex = sliceBeingDrawnObj.dMaxSliceIndex - sliceBeingDrawnObj.dCurrentSliceIndex + 1;
         end
 
         rowVals = repmat(sliceIndex, 1, 2);
-        colVals = [1, obj.volumeNumCols];
-    elseif sliceBeingDrawnObj.planeDimensionNumber == obj.colDimensionNumber
-        if obj.colFlipRequired == sliceBeingDrawnObj.sliceFlipRequired
-            sliceIndex = sliceBeingDrawnObj.currentSliceIndex;
+        colVals = [1, obj.dVolumeNumCols];
+    elseif sliceBeingDrawnObj.dPlaneDimensionNumber == obj.dColDimensionNumber
+        if obj.bColFlipRequired == sliceBeingDrawnObj.bSliceFlipRequired
+            sliceIndex = sliceBeingDrawnObj.dCurrentSliceIndex;
         else
-            sliceIndex = sliceBeingDrawnObj.maxSliceIndex - sliceBeingDrawnObj.currentSliceIndex + 1;
+            sliceIndex = sliceBeingDrawnObj.dMaxSliceIndex - sliceBeingDrawnObj.dCurrentSliceIndex + 1;
         end
 
-        rowVals = [1, obj.volumeNumRows];
+        rowVals = [1, obj.dVolumeNumRows];
         colVals = repmat(sliceIndex, 1, 2);
     else
         error('Non-orthogonal planes!');

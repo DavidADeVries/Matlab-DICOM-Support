@@ -121,52 +121,52 @@ classdef DicomContour < matlab.mixin.Copyable
         
         function c1m2dPolygonIndices = getPolygonIndicesWithinImagingPlane(obj, oInteractiveImagingPlane)
             dPlaneDimensionNumber = oInteractiveImagingPlane.dPlaneDimensionNumber;
-            dSliceIndex = oInteractiveImagingPlane.getCurrentSliceIndex();
+            sliceIndex = oInteractiveImagingPlane.getCurrentSliceIndex();
             
             c1m2dPolygonIndices = {};
             
             if obj.vdPolygonPlaneDimensionNumber == dPlaneDimensionNumber            
-                c1m2dPolygonIndices = obj.c1m2dPolygonIndices( ((dSliceIndex - 0.5) <= obj.vdPolygonPlaneIndices) & (obj.vdPolygonPlaneIndices <= (dSliceIndex + 0.5)) );
+                c1m2dPolygonIndices = obj.c1m2dPolygonIndices( ((sliceIndex - 0.5) <= obj.vdPolygonPlaneIndices) & (obj.vdPolygonPlaneIndices <= (sliceIndex + 0.5)) );
             end
         end
 
-        function c1m2dPolygonIndices = getAnyIndicesWithinImagingPlane(obj, oInteractiveImagingPlane)
-            dPlaneDimensionNumber = oInteractiveImagingPlane.dPlaneDimensionNumber;
-            dSliceIndex = oInteractiveImagingPlane.getCurrentSliceIndex();
+        function c1m2dPolygonIndices = getAnyIndicesWithinImagingPlane(obj, imagingPlaneObject)
+            planeDimensionNumber = imagingPlaneObject.planeDimensionNumber;
+            sliceIndex = imagingPlaneObject.getCurrentSliceIndex();
             
-            c1m2dPolygonIndices = obj.c1m2dAllPolygonIndices( ((dSliceIndex - 0.5) <= obj.c1m2dAllPolygonIndices(:,dPlaneDimensionNumber)) & (obj.c1m2dAllPolygonIndices(:,dPlaneDimensionNumber) <= (dSliceIndex + 0.5)), :);
+            c1m2dPolygonIndices = obj.c1m2dAllPolygonIndices( ((sliceIndex - 0.5) <= obj.c1m2dAllPolygonIndices(:,planeDimensionNumber)) & (obj.c1m2dAllPolygonIndices(:,planeDimensionNumber) <= (sliceIndex + 0.5)), :);
         end
         
         % ** FUNCTIONS FOR CONTOUR DISPLAY APP **
-        function bBool = isValidForContourDisplay(obj, dContourGroupNumberForDisplay)
+        function bool = isValidForContourDisplay(obj, contourGroupNumberForDisplay)
             if isempty(obj.contourValidationResult)
-                bBool = false;
+                bool = false;
             else
-                bBool = (obj.contourValidationResult.dContourGroupNumber == dContourGroupNumberForDisplay);
+                bool = (obj.contourValidationResult.contourGroupNumber == contourGroupNumberForDisplay);
             end
         end
     end
 end
 
 
-function [m2bPolygonPlaneDimensionMask, vdPolygonPlaneDimensionNumber] = findDimensionPlane(m2dVertexIndices)
+function [m2bPolygonPlaneDimensionMask, vdPolygonPlaneDimensionNumber] = findDimensionPlane(vertexIndices)
 % closed planar polygons are most often drawn within a single
 % plane. % Here we figure out which dimensions doesn't change
 
 % range of the numbers within each dimension
-vdDimRange = (max(m2dVertexIndices,[],1) - min(m2dVertexIndices,[],1));
+dimRange = (max(vertexIndices,[],1) - min(vertexIndices,[],1));
 
 % if the range of the valus within a dimension varies little
 % (or not at all), the contour was most likely drawn in that
 % plane
-m2bPolygonPlaneDimensionMask = vdDimRange < ContourValidationContour.dCoordsWithinSliceBound;
+m2bPolygonPlaneDimensionMask = dimRange < ContourValidationContour.dCoordsWithinSliceBound;
 
 if sum(m2bPolygonPlaneDimensionMask) == 1 % single plane, good to go!
-    vdCols = 1:3;
-    vdPolygonPlaneDimensionNumber = vdCols(m2bPolygonPlaneDimensionMask);
+    cols = 1:3;
+    vdPolygonPlaneDimensionNumber = cols(m2bPolygonPlaneDimensionMask);
 elseif sum(m2bPolygonPlaneDimensionMask) > 1
     % choose the col with the least variation as one drawn in
-    [~,vdPolygonPlaneDimensionNumber] = min(vdDimRange);
+    [~,vdPolygonPlaneDimensionNumber] = min(dimRange);
     
     m2bPolygonPlaneDimensionMask = false(1,3);
     
