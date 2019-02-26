@@ -15,7 +15,9 @@ classdef DicomContour < matlab.mixin.Copyable
         
         vdPolygonPlaneIndices = [] % nx1 double array holding the common plane indices of each polygon
         m2bPolygonPlaneDimensionMask % holds which dimension the plane in from
-        vdPolygonPlaneDimensionNumber % holds which dimension the plane in from        
+        vdPolygonPlaneDimensionNumber % holds which dimension the plane in from  
+        
+        vdContourColour_rgb = [1 0 0];
     end
     
     methods
@@ -85,12 +87,12 @@ classdef DicomContour < matlab.mixin.Copyable
             dInsertIndex = 1;
 
             for dPolygonIndex=1:dNumPolygons
-                numIndices = size(c1m2dPolygonIndices{dPolygonIndex},1);
+                dNumIndices = size(c1m2dPolygonIndices{dPolygonIndex},1);
 
-                m2dAllIndices(dInsertIndex : dInsertIndex + numIndices - 1,~m2bPolygonPlaneDimensionMasks(dPolygonIndex,:)) = c1m2dPolygonIndices{dPolygonIndex};
-                m2dAllIndices(dInsertIndex : dInsertIndex + numIndices - 1,m2bPolygonPlaneDimensionMasks(vdPolygonIndex,:)) = vdPolygonPlaneIndices(dPolygonIndex);
+                m2dAllIndices(dInsertIndex : dInsertIndex + dNumIndices - 1, ~m2bPolygonPlaneDimensionMasks(dPolygonIndex,:)) = c1m2dPolygonIndices{dPolygonIndex};
+                m2dAllIndices(dInsertIndex : dInsertIndex + dNumIndices - 1, m2bPolygonPlaneDimensionMasks(dPolygonIndex,:)) = vdPolygonPlaneIndices(dPolygonIndex);
 
-                dInsertIndex = dInsertIndex + numIndices;
+                dInsertIndex = dInsertIndex + dNumIndices;
             end
             
             obj.c1m2dPolygonIndices = c1m2dPolygonIndices;
@@ -159,7 +161,7 @@ vdDimRange = (max(m2dVertexIndices,[],1) - min(m2dVertexIndices,[],1));
 % if the range of the valus within a dimension varies little
 % (or not at all), the contour was most likely drawn in that
 % plane
-m2bPolygonPlaneDimensionMask = vdDimRange < ContourValidationContour.dCoordsWithinSliceBound;
+m2bPolygonPlaneDimensionMask = vdDimRange < DicomContour.dCoordsWithinSliceBound;
 
 if sum(m2bPolygonPlaneDimensionMask) == 1 % single plane, good to go!
     vdCols = 1:3;

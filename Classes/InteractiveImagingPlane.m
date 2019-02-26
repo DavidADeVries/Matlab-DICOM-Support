@@ -15,7 +15,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
         
         chAxesTitle
         
-        c1oPlotHandles = {}
+        c1c1oPlotHandles = {}
         c1oSliceLocationHandles = {}
         
         vdTargetPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
@@ -115,7 +115,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.dCurrentSliceIndex = min(obj.dMaxSliceIndex, obj.dCurrentSliceIndex + obj.dSliceIndexIncrement);
             
             obj.setImage(oDicomImageVolume);
-            obj.drawPolygons(c1oDicomContours);
+            obj.drawContours(c1oDicomContours);
             
             obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end        
@@ -124,7 +124,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.dCurrentSliceIndex = max(obj.dMinSliceIndex, obj.dCurrentSliceIndex - obj.dSliceIndexIncrement);
             
             obj.setImage(oDicomImageVolume);
-            obj.drawPolygons(c1oDicomContours);
+            obj.drawContours(c1oDicomContours);
             
             obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end
@@ -149,7 +149,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.dCurrentSliceIndex = dSpinnerValue;
             
             obj.setImage(oDicomImageVolume);
-            obj.drawPolygons(c1oDicomContours);
+            obj.drawContours(c1oDicomContours);
             
             obj.oSliceLocationSpinnerHandle.Value = obj.dCurrentSliceIndex;
         end
@@ -245,7 +245,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vbPlaneDimensionMask = false(1,3);
             obj.vbPlaneDimensionMask(dClosestMatchIndex) = true;
             obj.dPlanePixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumSlices = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
+            obj.dVolumeNumSlices = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
             
             if vdTargetPlaneNormalDotProducts(dClosestMatchIndex) < 0
                 obj.bSliceFlipRequired = true;
@@ -264,7 +264,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vbRowDimensionMask = false(1,3);
             obj.vbRowDimensionMask(dClosestMatchIndex) = true;
             obj.dRowPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumRows = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
+            obj.dVolumeNumRows = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
             
             if vdTargetPlaneRowDotProducts(dClosestMatchIndex) < 0
                 obj.bRowFlipRequired = false;
@@ -283,7 +283,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vbColDimensionMask = false(1,3);
             obj.vbColDimensionMask(dClosestMatchIndex) = true;  
             obj.dColPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumCols = oDicomImageVolume.volumeDimensions(dClosestMatchIndex);
+            obj.dVolumeNumCols = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
             
             if vdTargetPlaneColDotProducts(dClosestMatchIndex) < 0
                 obj.bColFlipRequired = true;
@@ -298,7 +298,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             
             % get slice index bounds
             obj.dMinSliceIndex = 1;
-            obj.dMaxSliceIndex = oDicomImageVolume.volumeDimensions(obj.vbPlaneDimensionMask);
+            obj.dMaxSliceIndex = oDicomImageVolume.vdVolumeDimensions(obj.vbPlaneDimensionMask);
             
             obj.oSliceLocationSpinnerHandle.Limits = [obj.dMinSliceIndex, obj.dMaxSliceIndex];
             
@@ -354,67 +354,28 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.oAxesLabelHandle.Text = chLabel;
         end
         
-        function [] = drawPolygons(obj, c1oDicomContours)
-            error('Need to support multiple contour support');
-            c1m2dPolygonVertexIndices = c1oDicomContours.getPolygonIndicesWithinImagingPlane(obj);
-                       
+        function [] = drawContours(obj, c1oDicomContours)
+            dNumContours = length(c1oDicomContours);
+            c1c1oPlotHandles = cell(dNumContours,1);
             
-            dNumPolygons = length(c1m2dPolygonVertexIndices);
-            
-            if dNumPolygons ~= 0 % render the polygons!
-                vbRowMask = obj.vbRowDimensionMask;
-                vbRowMask(obj.dPlaneDimensionNumber) = [];
-                
-                vbColMask = obj.vbColDimensionMask;
-                vbColMask(obj.dPlaneDimensionNumber) = [];
-                
-                c1oPlotHandles = cell(dNumPolygons,1);
-                
-                for dPolygonIndex=1:dNumPolygons
-                    m2dIndices = c1m2dPolygonVertexIndices{dPolygonIndex};
-                    
-                    m2dRowIndices = [m2dIndices(:,vbRowMask);m2dIndices(1,vbRowMask)];
-                    m2dColIndices = [m2dIndices(:,vbColMask);m2dIndices(1,vbColMask)];
-                    
-                    if obj.bRowFlipRequired
-                        m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
-                    end
-                    
-                    if obj.bColFlipRequired
-                        m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
-                    end
-                    
-                    c1oPlotHandles{dPolygonIndex} = plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'-','Color',[1 0 0]);
-                end
-            else % look for any points within the current slice and render those (unconnected)
-                m2dPointIndices = c1oDicomContours.getAnyIndicesWithinImagingPlane(obj);
-                
-                vbRowMask = obj.vbRowDimensionMask;                
-                vbColMask = obj.vbColDimensionMask;
-                
-                m2dRowIndices = m2dPointIndices(:,vbRowMask);
-                m2dColIndices = m2dPointIndices(:,vbColMask);
-                
-                if obj.bRowFlipRequired
-                    m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
-                end
-                
-                if obj.bColFlipRequired
-                    m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
-                end
-                
-                c1oPlotHandles = {plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'.','Color',[1 0 0])};
+            for dContourIndex = 1:dNumContours
+                c1c1oPlotHandles{dContourIndex} = ...
+                    obj.drawContour(c1oDicomContours{dContourIndex});
             end
             
-            obj.c1oPlotHandles = c1oPlotHandles;
+            obj.c1c1oPlotHandles = c1c1oPlotHandles;
         end
         
         function [] = deletePlottedObjects(obj)
-            for dPlotIndex=1:length(obj.c1oPlotHandles)
-                delete(obj.c1oPlotHandles{dPlotIndex});
+            for dContourIndex=1:length(obj.c1c1oPlotHandles)
+                c1oContourPlotHandles = obj.c1c1oPlotHandles{dContourIndex};
+                
+                for dPolygonIndex=1:length(c1oContourPlotHandles)
+                    delete(c1oContourPlotHandles{dPolygonIndex});
+                end
             end
             
-            obj.c1oPlotHandles = {};
+            obj.c1c1oPlotHandles = {};
         end
         
         function [] = deleteSliceLocations(obj)
@@ -520,6 +481,59 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm - dNumIncrements .* obj.dFieldOfViewIncrement_mm;
             
             obj.setAxisLimits(oDicomImageVolume);
+        end
+    end
+    
+    methods(Access = private)
+        function c1oPlotHandles = drawContour(obj, oDicomContour)
+            c1m2dPolygonVertexIndices = oDicomContour.getPolygonIndicesWithinImagingPlane(obj);
+            
+            dNumPolygons = length(c1m2dPolygonVertexIndices);
+            
+            if dNumPolygons ~= 0 % render the polygons!
+                vbRowMask = obj.vbRowDimensionMask;
+                vbRowMask(obj.dPlaneDimensionNumber) = [];
+                
+                vbColMask = obj.vbColDimensionMask;
+                vbColMask(obj.dPlaneDimensionNumber) = [];
+                
+                c1oPlotHandles = cell(dNumPolygons,1);
+                
+                for dPolygonIndex=1:dNumPolygons
+                    m2dIndices = c1m2dPolygonVertexIndices{dPolygonIndex};
+                    
+                    m2dRowIndices = [m2dIndices(:,vbRowMask);m2dIndices(1,vbRowMask)];
+                    m2dColIndices = [m2dIndices(:,vbColMask);m2dIndices(1,vbColMask)];
+                    
+                    if obj.bRowFlipRequired
+                        m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
+                    end
+                    
+                    if obj.bColFlipRequired
+                        m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
+                    end
+                    
+                    c1oPlotHandles{dPolygonIndex} = plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'-','Color',oDicomContour.vdContourColour_rgb);
+                end
+            else % look for any points within the current slice and render those (unconnected)
+                m2dPointIndices = oDicomContour.getAnyIndicesWithinImagingPlane(obj);
+                
+                vbRowMask = obj.vbRowDimensionMask;
+                vbColMask = obj.vbColDimensionMask;
+                
+                m2dRowIndices = m2dPointIndices(:,vbRowMask);
+                m2dColIndices = m2dPointIndices(:,vbColMask);
+                
+                if obj.bRowFlipRequired
+                    m2dRowIndices = obj.dVolumeNumRows - m2dRowIndices + 1;
+                end
+                
+                if obj.bColFlipRequired
+                    m2dColIndices = obj.dVolumeNumCols - m2dColIndices + 1;
+                end
+                
+                c1oPlotHandles = {plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'.','Color',oDicomContour.vdContourColour_rgb)};
+            end
         end
     end
 end

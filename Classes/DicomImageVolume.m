@@ -2,251 +2,251 @@ classdef DicomImageVolume < matlab.mixin.Copyable
     %DicomImageVolume
     
     properties
-        volumeData % 3D matrix of data
-        volumeDimensions
+        m3iVolumeData % 3D matrix of data
+        vdVolumeDimensions
         
-        imagePosition_mm
-        imageOrientation
+        vdImagePosition_mm
+        vdImageOrientation
         
-        inPlanePixelSpacing_mm % 1x2 array of spacing of rows, cols
-        centreOfSliceSeparation_mm
+        vdInPlanePixelSpacing_mm % 1x2 array of spacing of rows, cols
+        dCentreOfSliceSeparation_mm
         
-        minLevel
-        maxLevel
+        dMinLevel
+        dMaxLevel
         
-        minWindow = 1
-        maxWindow
+        dMinWindow = 1
+        dMaxWindow
         
-        fieldOfViewCentreCoords_mm = []
+        vdFieldOfViewCentreCoords_mm = []
     end
     
     methods
-        function obj = DicomImageVolume(dicomSeriesDir)
+        function obj = DicomImageVolume(chDicomSeriesDir)
             %obj = ContourValidationImageVolume(dicomSeriesDir)
-            [volume, volumeDimensions, imagePosition, imageOrientation, pixelSpacing, centreOfSliceSeparation]...
-                = getDicomSeriesVolumeAndGeometry(dicomSeriesDir, 'Verbose', true);
+            [m3iVolume, vdVolumeDimensions, vdImagePosition, vdImageOrientation, vdPixelSpacing, dCentreOfSliceSeparation]...
+                = getDicomSeriesVolumeAndGeometry(chDicomSeriesDir, 'Verbose', true);
             
-            obj.volumeData = volume;
-            obj.volumeDimensions = volumeDimensions;
+            obj.m3iVolumeData = m3iVolume;
+            obj.vdVolumeDimensions = vdVolumeDimensions;
             
-            allDimMin = double(min(min(min(volume))));
-            allDimMax = double(max(max(max(volume))));
+            dAllDimMin = double(min(min(min(m3iVolume))));
+            dAllDimMax = double(max(max(max(m3iVolume))));
             
-            obj.minLevel = allDimMin;
-            obj.maxLevel = allDimMax;
+            obj.dMinLevel = dAllDimMin;
+            obj.dMaxLevel = dAllDimMax;
             
-            obj.maxWindow = allDimMax - allDimMin;
+            obj.dMaxWindow = dAllDimMax - dAllDimMin;
             
-            obj.imagePosition_mm = imagePosition;
-            obj.imageOrientation = imageOrientation;
+            obj.vdImagePosition_mm = vdImagePosition;
+            obj.vdImageOrientation = vdImageOrientation;
             
-            obj.inPlanePixelSpacing_mm = pixelSpacing;
-            obj.centreOfSliceSeparation_mm = centreOfSliceSeparation;
+            obj.vdInPlanePixelSpacing_mm = vdPixelSpacing;
+            obj.dCentreOfSliceSeparation_mm = dCentreOfSliceSeparation;
         end
                 
-        function [i,j,k] = getVoxelIndicesFromCoordinates(obj, x, y, z)
+        function [vdI,vdJ,vdK] = getVoxelIndicesFromCoordinates(obj, vdX, vdY, vdZ)
             % switch j and i to get from DICOM's (c,r,s) to MATLAB (r,c,s)
-            [j,i,k] = getVoxelIndicesFromCoordinates(x, y, z,...
-                obj.imagePosition_mm, obj.imageOrientation,...
-                obj.inPlanePixelSpacing_mm, obj.centreOfSliceSeparation_mm);
+            [vdJ,vdI,vdK] = getVoxelIndicesFromCoordinates(vdX, vdY, vdZ,...
+                obj.vdImagePosition_mm, obj.vdImageOrientation,...
+                obj.vdInPlanePixelSpacing_mm, obj.dCentreOfSliceSeparation_mm);
             
             % plus 1 to get from DICOM indices starting at 0 into MATLAB's starting at 1
-            i = i + 1;
-            j = j + 1;
-            k = k + 1;
+            vdI = vdI + 1;
+            vdJ = vdJ + 1;
+            vdK = vdK + 1;
         end
         
-        function [x,y,z] = getCoordinatesFromVoxelIndices(obj, i, j, k)
-            [x,y,z] = getCoordinatesFromVoxelIndices(j-1, i-1, k-1,... % minus 1 to get into DICOM indices starting at 0 instead of MATLAB's 1, switch i and j to go from DICOM (c,r,s) to MATLAB (r,c,s)
-                obj.imagePosition_mm, obj.imageOrientation,...
-                obj.inPlanePixelSpacing_mm, obj.centreOfSliceSeparation_mm);
+        function [vdX,vdY,vdZ] = getCoordinatesFromVoxelIndices(obj, vdI, vdJ, vdK)
+            [vdX,vdY,vdZ] = getCoordinatesFromVoxelIndices(vdJ-1, vdI-1, vdK-1,... % minus 1 to get into DICOM indices starting at 0 instead of MATLAB's 1, switch i and j to go from DICOM (c,r,s) to MATLAB (r,c,s)
+                obj.vdImagePosition_mm, obj.vdImageOrientation,...
+                obj.vdInPlanePixelSpacing_mm, obj.dCentreOfSliceSeparation_mm);
         end
         
-        function [sagittalDim, coronalDim, axialDim] = getPlaneDimensions(obj)
-            [~,rowDim] = max(obj.imageOrientation(1:3));
-            [~,colDim] = max(obj.imageOrientation(4:6));
+        function [dSagittalDim, dCoronalDim, dAxialDim] = getPlaneDimensions(obj)
+            [~,dRowDim] = max(obj.vdImageOrientation(1:3));
+            [~,dColDim] = max(obj.vdImageOrientation(4:6));
             
-            possibleDims = 1:3;
+            vdPossibleDims = 1:3;
             
-            sliceDim = possibleDims(possibleDims ~= rowDim & possibleDims ~= colDim);
+            dSliceDim = vdPossibleDims(vdPossibleDims ~= dRowDim & vdPossibleDims ~= dColDim);
             
-            volumeDims = [rowDim, colDim, sliceDim]; % 1 is for x, 2 is for y, 3 is z
+            vdVolumeDims = [dRowDim, dColDim, dSliceDim]; % 1 is for x, 2 is for y, 3 is z
             
             % now transform these into which index for each plane
-            possibleIndices = 1:3;
+            vdPossibleIndices = 1:3;
             
-            sagittalDim = possibleIndices(volumeDims == 1);
-            coronalDim = possibleIndices(volumeDims == 2);
-            axialDim = possibleIndices(volumeDims == 1);
+            dSagittalDim = vdPossibleIndices(vdVolumeDims == 1);
+            dCoronalDim = vdPossibleIndices(vdVolumeDims == 2);
+            dAxialDim = vdPossibleIndices(vdVolumeDims == 1);
         end
         
-        function [slice, rowData, colData, rowBounds, colBounds] = getSlice(obj, planeObject)
+        function [m2iSlice, vdRowData, vdColData, vdRowBounds, vdColBounds] = getSlice(obj, oPlaneObject)
             
-            sliceIndex = planeObject.getCurrentSliceIndex();
+            dSliceIndex = oPlaneObject.getCurrentSliceIndex();
             
-            [topLeftIndices, botRightIndices] = planeObject.getCurrentFieldOfViewIndices(obj);
+            [vdTopLeftIndices, vdBotRightIndices] = oPlaneObject.getCurrentFieldOfViewIndices(obj);
                         
-            rowBounds = [botRightIndices(planeObject.rowDimensionNumber), topLeftIndices(planeObject.rowDimensionNumber)];
-            colBounds = [topLeftIndices(planeObject.colDimensionNumber), botRightIndices(planeObject.colDimensionNumber)];
+            vdRowBounds = [vdBotRightIndices(oPlaneObject.dRowDimensionNumber), vdTopLeftIndices(oPlaneObject.dRowDimensionNumber)];
+            vdColBounds = [vdTopLeftIndices(oPlaneObject.dColDimensionNumber), vdBotRightIndices(oPlaneObject.dColDimensionNumber)];
             
             % check if any flips are needed
-            if planeObject.rowFlipRequired
-                rowBounds = fliplr(rowBounds);
+            if oPlaneObject.bRowFlipRequired
+                vdRowBounds = fliplr(vdRowBounds);
             end
             
-            if planeObject.colFlipRequired
-                colBounds = fliplr(colBounds);
+            if oPlaneObject.bColFlipRequired
+                vdColBounds = fliplr(vdColBounds);
             end       
             % get slice
-            sliceSelectionIndices = cell(3,1);
+            c1vdSliceSelectionIndices = cell(3,1);
             
-            sliceSelectionIndices{planeObject.planeDimensionNumber} = sliceIndex;
-            sliceSelectionIndices{planeObject.rowDimensionNumber} = 1:planeObject.volumeNumRows;
-            sliceSelectionIndices{planeObject.colDimensionNumber} = 1:planeObject.volumeNumCols;
+            c1vdSliceSelectionIndices{oPlaneObject.dPlaneDimensionNumber} = dSliceIndex;
+            c1vdSliceSelectionIndices{oPlaneObject.dRowDimensionNumber} = 1:oPlaneObject.dVolumeNumRows;
+            c1vdSliceSelectionIndices{oPlaneObject.dColDimensionNumber} = 1:oPlaneObject.dVolumeNumCols;
             
-            slice = squeeze(obj.volumeData(sliceSelectionIndices{1},sliceSelectionIndices{2},sliceSelectionIndices{3}));
+            m2iSlice = squeeze(obj.m3iVolumeData(c1vdSliceSelectionIndices{1},c1vdSliceSelectionIndices{2},c1vdSliceSelectionIndices{3}));
                         
-            if planeObject.rowFlipRequired
-                slice = flipud(slice);
+            if oPlaneObject.bRowFlipRequired
+                m2iSlice = flipud(m2iSlice);
             end
             
-            if planeObject.colFlipRequired
-                slice = fliplr(slice);
+            if oPlaneObject.bColFlipRequired
+                m2iSlice = fliplr(m2iSlice);
             end
             
-            dims = size(slice);
+            vdDims = size(m2iSlice);
             
-            rowData = [1,dims(1)];
-            colData = [1,dims(2)];
+            vdRowData = [1,vdDims(1)];
+            vdColData = [1,vdDims(2)];
         end
         
-        function slice = getSliceOnly(obj, planeObject)
-            sliceIndex = planeObject.getCurrentSliceIndex();
+        function m2iSlice = getSliceOnly(obj, oPlaneObject)
+            dSliceIndex = oPlaneObject.getCurrentSliceIndex();
             
-            sliceSelectionIndices = cell(3,1);
+            c1vdSliceSelectionIndices = cell(3,1);
             
-            sliceSelectionIndices{planeObject.planeDimensionNumber} = sliceIndex;
-            sliceSelectionIndices{planeObject.rowDimensionNumber} = 1:planeObject.volumeNumRows;
-            sliceSelectionIndices{planeObject.colDimensionNumber} = 1:planeObject.volumeNumCols;
+            c1vdSliceSelectionIndices{oPlaneObject.dPlaneDimensionNumber} = dSliceIndex;
+            c1vdSliceSelectionIndices{oPlaneObject.dRowDimensionNumber} = 1:oPlaneObject.dVolumeNumRows;
+            c1vdSliceSelectionIndices{oPlaneObject.dColDimensionNumber} = 1:oPlaneObject.dVolumeNumCols;
             
-            slice = squeeze(obj.volumeData(sliceSelectionIndices{1},sliceSelectionIndices{2},sliceSelectionIndices{3}));
+            m2iSlice = squeeze(obj.m3iVolumeData(c1vdSliceSelectionIndices{1},c1vdSliceSelectionIndices{2},c1vdSliceSelectionIndices{3}));
             
-            if planeObject.rowFlipRequired
-                slice = flipud(slice);
+            if oPlaneObject.bRowFlipRequired
+                m2iSlice = flipud(m2iSlice);
             end
             
-            if planeObject.colFlipRequired
-                slice = fliplr(slice);
+            if oPlaneObject.bColFlipRequired
+                m2iSlice = fliplr(m2iSlice);
             end
         end
         
-        function [rowBounds, colBounds] = getRowAndColumnLimits(obj, planeObject)
-            [topLeftIndices, botRightIndices] = planeObject.getCurrentFieldOfViewIndices(obj);
+        function [vdRowBounds, vdColBounds] = getRowAndColumnLimits(obj, oPlaneObject)
+            [vdTopLeftIndices, vdBotRightIndices] = oPlaneObject.getCurrentFieldOfViewIndices(obj);
                         
-            rowBounds = [botRightIndices(planeObject.rowDimensionNumber), topLeftIndices(planeObject.rowDimensionNumber)];
-            colBounds = [topLeftIndices(planeObject.colDimensionNumber), botRightIndices(planeObject.colDimensionNumber)];
+            vdRowBounds = [vdBotRightIndices(oPlaneObject.dRowDimensionNumber), vdTopLeftIndices(oPlaneObject.dRowDimensionNumber)];
+            vdColBounds = [vdTopLeftIndices(oPlaneObject.dColDimensionNumber), vdBotRightIndices(oPlaneObject.dColDimensionNumber)];
             
             % check if any flips are needed
-            if rowBounds(1) > rowBounds(2)
-                rowBounds = fliplr(rowBounds);
+            if vdRowBounds(1) > vdRowBounds(2)
+                vdRowBounds = fliplr(vdRowBounds);
             end
             
-            if colBounds(1) > colBounds(2)
-                colBounds = fliplr(colBounds);
+            if vdColBounds(1) > vdColBounds(2)
+                vdColBounds = fliplr(vdColBounds);
             end              
         end
         
         function [] = setDefaultThreshold(obj, oControllerObject)
-            v = obj.volumeData(:);
+            viVolumeVector = obj.m3iVolumeData(:);
             
-            minAll = double(min(v));            
-            maxAll = double(max(v));
+            dMinAll = double(min(viVolumeVector));            
+            dMaxAll = double(max(viVolumeVector));
             
-            darkCutoff = (maxAll - minAll) / 25;
+            dDarkCutoff = (dMaxAll - dMinAll) / 25;
             
-            aboveCutoffMean = double(mean(v(v > darkCutoff)));
+            dAboveCutoffMean = double(mean(viVolumeVector(viVolumeVector > dDarkCutoff)));
             
-            level = aboveCutoffMean + darkCutoff;
+            dLevel = dAboveCutoffMean + dDarkCutoff;
             
-            windowLow = darkCutoff * 1.5;
-            windowHigh = level + (level - windowLow);
+            dWindowLow = dDarkCutoff * 1.5;
+            dWindowHigh = dLevel + (dLevel - dWindowLow);
             
-            window = round(windowHigh - windowLow);
-            level = round(level);
+            dWindow = round(dWindowHigh - dWindowLow);
+            dLevel = round(dLevel);
             
-            oControllerObject.oThresholdWindowEditFieldHandle.Value = window;
-            oControllerObject.oThresholdLevelEditFieldHandle.Value = level;
+            oControllerObject.oThresholdWindowEditFieldHandle.Value = dWindow;
+            oControllerObject.oThresholdLevelEditFieldHandle.Value = dLevel;
             
-            oControllerObject.oThresholdMinEditFieldHandle.Value = level - window/2;
-            oControllerObject.oThresholdMaxEditFieldHandle.Value = level + window/2;
+            oControllerObject.oThresholdMinEditFieldHandle.Value = dLevel - dWindow/2;
+            oControllerObject.oThresholdMaxEditFieldHandle.Value = dLevel + dWindow/2;
         end
         
-        function [rowPixelSpacing_mm, colPixelSpacing_mm] = getPixelSpacingForPlane(obj, planeNormalUnitVector)
-            [rowDim, colDim] = obj.getRowAndColumnDimensionsForPlane(planeNormalUnitVector);
+        function [dRowPixelSpacing_mm, dColPixelSpacing_mm] = getPixelSpacingForPlane(obj, vdPlaneNormalUnitVector)
+            [dRowDim, dColDim] = obj.getRowAndColumnDimensionsForPlane(vdPlaneNormalUnitVector);
             
-            pixelSpacingVector_mm = obj.getPixelSpacingVector();
+            vdPixelSpacingVector_mm = obj.getPixelSpacingVector();
             
-            rowPixelSpacing_mm = pixelSpacingVector_mm(rowDim);
-            colPixelSpacing_mm = pixelSpacingVector_mm(colDim);
+            dRowPixelSpacing_mm = vdPixelSpacingVector_mm(dRowDim);
+            dColPixelSpacing_mm = vdPixelSpacingVector_mm(dColDim);
         end
         
-        function [numRows, numCols] = getSliceDimensionsForPlane(obj, planeNormalUnitVector)
-            [rowDim, colDim] = obj.getRowAndColumnDimensionsForPlane(planeNormalUnitVector);
+        function [dNumRows, dNumCols] = getSliceDimensionsForPlane(obj, vdPlaneNormalUnitVector)
+            [vRowDim, vColDim] = obj.getRowAndColumnDimensionsForPlane(vdPlaneNormalUnitVector);
             
-            numRows = obj.volumeDimensions(rowDim);
-            numCols = obj.volumeDimensions(colDim);
+            dNumRows = obj.vdVolumeDimensions(vRowDim);
+            dNumCols = obj.vdVolumeDimensions(vColDim);
         end
         
-        function [rowDim, colDim] = getRowAndColumnDimensionsForPlane(obj, planeNormalUnitVector)
-            indexUnitVector = obj.getVoxelIndexUnitVector();
+        function [dRowDim, dColDim] = getRowAndColumnDimensionsForPlane(obj, vdPlaneNormalUnitVector)
+            vdIndexUnitVector = obj.getVoxelIndexUnitVector();
             
-            dotProd = round(dot(indexUnitVector,planeNormalUnitVector));
+            dDotProd = round(dot(vdIndexUnitVector,vdPlaneNormalUnitVector));
             
-            dims = 1:3;
+            vdDims = 1:3;
             
-            dimsForPlane = dims(dotProd ~= 0);
+            vdDimsForPlane = vdDims(dDotProd ~= 0);
             
-            colDim = dimsForPlane(1);
-            rowDim = dimsForPlane(2);
+            dColDim = vdDimsForPlane(1);
+            dRowDim = vdDimsForPlane(2);
         end
         
-        function pixelSpacingVector = getPixelSpacingVector(obj)
-            pixelSpacingVector = [obj.inPlanePixelSpacing_mm, obj.centreOfSliceSeparation_mm];
+        function vdPixelSpacingVector = getPixelSpacingVector(obj)
+            vdPixelSpacingVector = [obj.vdInPlanePixelSpacing_mm, obj.dCentreOfSliceSeparation_mm];
         end
         
-        function indexUnitVector = getVoxelIndexUnitVector(obj)
-            [x,y,z] = obj.getCoordinatesFromVoxelIndices(2,2,2);
+        function vdIndexUnitVector = getVoxelIndexUnitVector(obj)
+            [dX,dY,dZ] = obj.getCoordinatesFromVoxelIndices(2,2,2);
             
-            indexUnitVector = [x,y,z];
+            vdIndexUnitVector = [dX,dY,dZ];
         end
         
-        function dimMask = getPlaneIndexDimensionMask(obj, planeNormalUnitVector)
-            [rowUnitVector, colUnitVector, sliceUnitVector] = obj.getVolumeUnitVectors();
+        function vbDimMask = getPlaneIndexDimensionMask(obj, vdPlaneNormalUnitVector)
+            [vdRowUnitVector, vdColUnitVector, vdSliceUnitVector] = obj.getVolumeUnitVectors();
             
-            unitVectors = [rowUnitVector; colUnitVector; sliceUnitVector];
+            m2dVectors = [vdRowUnitVector; vdColUnitVector; vdSliceUnitVector];
             
-            dotProducts = dot(unitVectors, repmat(planeNormalUnitVector, 3, 1), 2);
+            vdDotProducts = dot(m2dVectors, repmat(vdPlaneNormalUnitVector, 3, 1), 2);
             
             % dot product of unit vector with plane's normal will be 0
             % unless aligned.
             % round just to tidy up any floating point errors
-            dimMask = logical(round(dotProducts'));
+            vbDimMask = logical(round(vdDotProducts'));
         end
         
-        function [rowUnitVector, colUnitVector, sliceUnitVector] = getVolumeUnitVectors(obj)
-            rowUnitVector = obj.imageOrientation(4:6);
-            colUnitVector = obj.imageOrientation(1:3);
+        function [vdRowUnitVector, vdColUnitVector, vdSliceUnitVector] = getVolumeUnitVectors(obj)
+            vdRowUnitVector = obj.vdImageOrientation(4:6);
+            vdColUnitVector = obj.vdImageOrientation(1:3);
             
-            sliceUnitVector = cross(colUnitVector, rowUnitVector);
+            vdSliceUnitVector = cross(vdColUnitVector, vdRowUnitVector);
         end
         
-        function centreCoords_mm = getCentreCoordsOfVolume(obj)
-            centreIndices = (obj.volumeDimensions+1) / 2;
+        function vdCentreCoords_mm = getCentreCoordsOfVolume(obj)
+            vdCentreIndices = (obj.vdVolumeDimensions+1) / 2;
             
-            [x,y,z] = obj.getCoordinatesFromVoxelIndices(...
-                centreIndices(1), centreIndices(2), centreIndices(3));
+            [dX,dY,dZ] = obj.getCoordinatesFromVoxelIndices(...
+                vdCentreIndices(1), vdCentreIndices(2), vdCentreIndices(3));
             
-            centreCoords_mm = [x,y,z];
+            vdCentreCoords_mm = [dX,dY,dZ];
         end
     end
     
