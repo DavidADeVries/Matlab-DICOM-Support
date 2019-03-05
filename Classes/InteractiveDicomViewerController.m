@@ -20,6 +20,9 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         c1oDicomContours = {}
         c1oInteractiveImagingPlanes = {} % cell array of InteractiveImagingPlane objects
         
+        chAutoZoomToggleHotkey = 'equal'
+        chAutoScrollHotkey = 'subtract'
+        
         bCtrlKeyPressedDown = false
         
         bLeftMouseButtonDown = false
@@ -57,40 +60,114 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
     end
     
     methods
-        function obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, oWindowHandle, oLevelHandle, oMinHandle, oMaxHandle)
-            %obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, oWindowHandle, oLevelHandle, oMinHandle, oMaxHandle)
+        function obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, varargin)
+            %obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, varargin)
+            
+            % set interactive imaging planes
             obj.c1oInteractiveImagingPlanes = c1oInteractiveImagingPlanes;
             
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setWindowLevelHandles(oWindowHandle, oLevelHandle, oMinHandle, oMaxHandle);
-            end
             
-            obj.oThresholdMinEditFieldHandle = oMinHandle;
-            obj.oThresholdMaxEditFieldHandle = oMaxHandle;
-            
-            obj.oThresholdWindowEditFieldHandle = oWindowHandle;
-            obj.oThresholdLevelEditFieldHandle = oLevelHandle;
-            
+            % set some figure handle properities
             obj.oFigureHandle = oFigureHandle;
             obj.oFigureHandle.DoubleBuffer = 'off';
             obj.oFigureHandle.Interruptible = 'on';
             obj.oFigureHandle.BusyAction = 'cancel';
+            
+            % if given, set window/level & min/max handles
+            oWindowHandle = [];
+            oLevelHandle = [];
+            
+            oMinHandle = [];
+            oMaxHandle = [];
+            
+            for dVarIndex=1:2:length(varargin)
+                switch varargin{dVarIndex}
+                    case 'WindowHandle'
+                        oWindowHandle = varargin{dVarIndex+1};
+                    case 'LevelHandle'
+                        oLevelHandle = varargin{dVarIndex+1};
+                    case 'MinHandle'
+                        obj.oThresholdMinEditFieldHandle = varargin{dVarIndex+1};
+                    case 'MaxHandle'
+                        obj.oThresholdMaxEditFieldHandle = varargin{dVarIndex+1};
+                    otherwise
+                        error(...
+                            'InterativeDicomViewerController:Constructor:InvalidNameValuePair',...
+                            ['Invalid parameter name ', varargin{dVarIndex}]);                        
+                end
+            end
+            
+            % set window/level handles
+            if ~isempty(oWindowHandle) && ~isempty(oLevelHandle)
+                obj.oThresholdWindowEditFieldHandle = oWindowHandle;
+                obj.oThresholdLevelEditFieldHandle = oLevelHandle;
+                
+                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdWindowLevelHandles(oWindowHandle, oLevelHandle);
+                end
+            end
+            
+            % set min/max handles
+            if ~isempty(oMinHandle) && ~isempty(oMaxHandle)
+                obj.oThresholdMinEditFieldHandle = oMinHandle;
+                obj.oThresholdMaxEditFieldHandle = oMaxHandle;
+                
+                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdMinMaxHandles(oMinHandle, oMaxHandle);
+                end
+            end            
         end
         
-        function [] = setNewHandles(obj, c1oNewInteractiveImagingPlanes, oNewWindowEditField, oNewLevelEditField, oNewMinEditField, oNewMaxEditField)
+        function [] = setNewHandles(obj, c1oNewInteractiveImagingPlanes, varargin)
+            % set new handles for interactive imaging planes
             for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
                 obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setNewHandles(c1oNewInteractiveImagingPlanes{dPlaneIndex});
             end
             
-            obj.oThresholdMinEditFieldHandle = oNewMinEditField;
-            obj.oThresholdMaxEditFieldHandle = oNewMaxEditField;
+            % find which threshold fields were given
+            oNewWindowEditField = [];
+            oNewLevelEditField = [];
             
-            obj.oThresholdWindowEditFieldHandle = oNewWindowEditField;
-            obj.oThresholdLevelEditFieldHandle = oNewLevelEditField;
+            oNewMinEditField = [];
+            oNewMaxEditField = [];
             
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setWindowHandles(...
-                    oNewWindowEditField, oNewLevelEditField, oNewMinEditField, oNewMaxEditField);
+            for dVarIndex=1:2:length(varargin)
+                switch varargin{dVarIndex}
+                    case 'WindowHandle'
+                        oNewWindowEditField = varargin{dVarIndex+1};
+                    case 'LevelHandle'
+                        oNewLevelEditField = varargin{dVarIndex+1};
+                    case 'MinHandle'
+                        oNewMinEditField = varargin{dVarIndex+1};
+                    case 'MaxHandle'
+                        oNewMaxEditField = varargin{dVarIndex+1};  
+                    otherwise
+                        error(...
+                            'InterativeDicomViewerController:setNewHandle:InvalidNameValuePair',...
+                            ['Invalid parameter name ', varargin{dVarIndex}]);                        
+                end
+            end
+            
+            % set window/level handles
+            if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)                
+                obj.oThresholdWindowEditFieldHandle = oNewWindowEditField;
+                obj.oThresholdLevelEditFieldHandle = oNewLevelEditField;
+                
+                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdWindowLevelHandles(...
+                        oNewWindowEditField, oNewLevelEditField);
+                end
+            end
+            
+            % set min/max handles
+            if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)
+                obj.oThresholdMinEditFieldHandle = oNewMinEditField;
+                obj.oThresholdMaxEditFieldHandle = oNewMaxEditField;
+                
+                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdMinMaxlHandles(...
+                        oNewMinEditField, oNewMaxEditField);
+                end
             end
         end
         
@@ -283,15 +360,22 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             dNumPlanes = length(obj.c1oInteractiveImagingPlanes);
             c1oAxesHandles = cell(dNumPlanes,1);
             
-            for dPlaneIndex=1:length(dNumPlanes)
+            for dPlaneIndex=1:dNumPlanes
                 c1oAxesHandles{dPlaneIndex} = obj.c1oInteractiveImagingPlanes{dPlaneIndex}.getAxesHandle();
             end  
         end
         
-        function [] = updateDisplayThesholds(obj)
+        function [] = updateDisplayThesholdsFromWindowLevelChange(obj)
             %[] = updateDisplayThesholds(obj)
             for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThreshold();
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.updateThresholdFromWindowLevelChange();
+            end 
+        end
+        
+        function [] = updateDisplayThesholdsFromMinMaxChange(obj)
+            %[] = updateDisplayThesholds(obj)
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.updateThresholdFromMinMaxChange();
             end 
         end
         
@@ -315,12 +399,10 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             
             switch key
                 case 'control'
-                    obj.ctrlKeyPressedDown = false;
-                case 'add'
+                    obj.bCtrlKeyPressedDown = false;
+                case obj.chAutoZoomToggleHotkey
                     obj.toggleAutoZoomSwitch();
-                case 'equal'
-                    obj.toggleAutoZoomSwitch();
-                case 'subtract'
+                case obj.chAutoScrollHotkey
                     obj.AutoScrollContouredSlicesButtonPushed();
                 otherwise
                     bEventOccurred = false;
@@ -346,7 +428,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             %verticalScrollAmount = event.VerticalScrollAmount;
             dVerticalScrollCount = oEvent.VerticalScrollCount;
             
-            c1oAxesHandles = obj.getAxesHandles;
+            c1oAxesHandles = obj.getAxesHandles();
             c1oInteractivePlanes = obj.c1oInteractiveImagingPlanes;
             
             dSelectedIndex = obj.findAppObjectMouseIsOver(obj.oFigureHandle, c1oAxesHandles);

@@ -255,16 +255,20 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             window = oControllerObj.oThresholdWindowEditFieldHandle.Value;
             level = oControllerObj.oThresholdLevelEditFieldHandle.Value;
             
-            oControllerObj.oThresholdMinEditFieldHandle.Value = level - window/2;
-            oControllerObj.oThresholdMaxEditFieldHandle.Value = level + window/2;
+            if ~isempty(oControllerObj.oThresholdMinEditFieldHandle) && ~isempty(oControllerObj.oThresholdMaxEditFieldHandle)
+                oControllerObj.oThresholdMinEditFieldHandle.Value = level - window/2;
+                oControllerObj.oThresholdMaxEditFieldHandle.Value = level + window/2;
+            end
         end 
                 
         function [] = updateDisplayThresholdsFromMinMaxChange(oControllerObj)
             min = oControllerObj.oThresholdMinEditFieldHandle.Value;
             max = oControllerObj.oThresholdMaxEditFieldHandle.Value;
             
-            oControllerObj.oThresholdWindowEditFieldHandle.Value = max - min;
-            oControllerObj.oThresholdLevelEditFieldHandle.Value = (min + max)/2;
+            if ~isempty(oControllerObj.oThresholdWindowEditFieldHandle) && ~isempty(oControllerObj.oThresholdLevelEditFieldHandle)
+                oControllerObj.oThresholdWindowEditFieldHandle.Value = max - min;
+                oControllerObj.oThresholdLevelEditFieldHandle.Value = (min + max)/2;
+            end
         end 
     end
 end
