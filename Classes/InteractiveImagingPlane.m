@@ -6,11 +6,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
         oAxesLabelHandle = []
         oSliceLocationSpinnerHandle = []
         
-        oWindowHandle = []
-        oLevelHandle = []
-        oMinHandle = []
-        oMaxHandle = []
-        
         oImageHandle
         
         chAxesTitle = ''
@@ -103,16 +98,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vdTargetPlaneColUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneColUnitVector;
         end
         
-        function [] = setThresholdWindowLevelHandles(obj, oWindowHandle, oLevelHandle)
-            obj.oWindowHandle = oWindowHandle;
-            obj.oLevelHandle = oLevelHandle;
-        end
-        
-        function [] = setThresholdMinMaxHandles(obj, oMinHandle, oMaxHandle)
-            obj.oMinHandle = oMinHandle;
-            obj.oMaxHandle = oMaxHandle;
-        end
-        
         function [] = zoomIn(obj, oDicomImageVolume)
             obj.dCurrentFieldOfView_mm = max(obj.dMinFieldOfView_mm, obj.dCurrentFieldOfView_mm - obj.dFieldOfViewIncrement_mm);
             
@@ -189,7 +174,8 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                 'CData', m2dSlice);
             obj.oAxesHandle.NextPlot = 'add';
             
-            obj.setThreshold();
+            [dMin, dMax] = oDicomImageVolume.getThresholdMinMax();
+            obj.setThreshold(dMin, dMax);
                  
             xlim(obj.oAxesHandle, vdColLim);
             ylim(obj.oAxesHandle, vdRowLim);            
@@ -216,29 +202,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.oImageHandle.CData = m2dSlice;  
         end
         
-        function updateThresholdFromMinMaxChange(obj)
-            dMin = obj.oMinHandle.Value;
-            dMax = obj.oMaxHandle.Value;
-            
-            [dWindow, dLevel] = obj.getWindowLevelFromMinMax(dMin, dMax);
-            
-            obj.updateThresholdWindowLevelValues(dWindow, dLevel);
-            
-            obj.setThreshold(dMin, dMax);
-        end
-        
-        function updateThresholdFromWindowLevelChange(obj)
-            dWindow = obj.oWindowHandle.Value;
-            dLevel = obj.oLevelHandle.Value;
-            
-            [dMin, dMax] = obj.getMinMaxFromWindowLevel(dWindow, dLevel);
-            
-            obj.updateThresholdMinMaxValues(dMin, dMax);
-            
-            obj.setThreshold(dMin, dMax);
-        end
-        
-        function [] = updateThresholdFromMouse(obj, cdMousePosition, oDicomImageVolume)
+        function [dMin,dMax] = getThresholdMinMaxFromMouse(obj, cdMousePosition, oDicomImageVolume)
             vdPosVector = getNormalizedPositionVectorFromObjectCorner(obj.oAxesHandle, cdMousePosition);
                         
             vdPosVector(vdPosVector>1) = 1;
@@ -247,16 +211,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             dLevel = vdPosVector(2)*oDicomImageVolume.dMaxWindow + oDicomImageVolume.dMinLevel;
             dWindow = vdPosVector(1)*oDicomImageVolume.dMaxWindow;
             
-            [dMin, dMax] = obj.getMinMaxFromWindowLevel(dWindow, dLevel);
-            
-            obj.updateThresholdMinMaxValues(dMin, dMax);
-            obj.updateThresholdWindowLevelValues(dWindow, dLevel);
-            
-            obj.setThreshold(dMin, dMax);
-        end
-        
-        function vdThreshold = getThreshold(obj)
-            vdThreshold = obj.oAxesHandle.CLim;
+            [dMin, dMax] = DicomImageVolume.getMinMaxFromWindowLevel(dWindow, dLevel);
         end
         
         function dSliceIndex = getCurrentSliceIndex(obj)
@@ -472,20 +427,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             end
         end
         
-        function updateThresholdWindowLevelValues(obj, dWindow, dLevel)
-            if ~isempty(obj.oWindowHandle) && ~isempty(obj.oLevelHandle)
-                obj.oWindowHandle.Value = dWindow;
-                obj.oLevelHandle.Value = dLevel;
-            end
-        end
-        
-        function updateThresholdMinMaxValues(obj, dMin, dMax)
-            if ~isempty(obj.oMinHandle) && ~isempty(obj.oMaxHandle)
-                obj.oMinHandle.Value = dMin;
-                obj.oMaxHandle.Value = dMax;
-            end
-        end
-        
 % % % %         function [] = matchExistingPlane(obj, existPlaneObject)
 % % % %             obj.vdPlaneNormalUnitVector = existPlaneObject.vdPlaneNormalUnitVector;
 % % % %             obj.vdPlaneRowUnitVector = existPlaneObject.vdPlaneRowUnitVector;
@@ -591,18 +532,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                 
                 c1oPlotHandles = {plot(obj.oAxesHandle,m2dColIndices,m2dRowIndices,'.','Color',oDicomContour.vdContourColour_rgb)};
             end
-        end
-    end
-    
-    methods (Static, Access = private)
-        function [dMin, dMax] = getMinMaxFromWindowLevel(dWindow, dLevel)
-            dMin = dLevel - dWindow/2;
-            dMax = dLevel + dWindow/2;
-        end
-        
-        function [dWindow, dLevel] = getWindowLevelFromMinMax(dMin, dMax)
-            dWindow = dMax - dMin;
-            dLevel = (dMin + dMax)/2;
         end
     end
 end

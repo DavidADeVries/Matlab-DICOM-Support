@@ -9,7 +9,7 @@ classdef DicomContour < matlab.mixin.Copyable
         c1m2dPolygonCoords = {} % cell array of nx3 double arrays (each array is a co-planar polyline, reshaped DICOM data)
         
         c1m2dPolygonIndices = {} % cell array of nx2 double arrays holding the indices of the voxels that the polygon vertices should be in. The common slice index is not includes. See "vdPolygonPlaneIndices"
-        c1m2dAllPolygonIndices = [] % nx3 double array holding all of indices concatenated for easy access
+        m2dAllPolygonIndices = [] % nx3 double array holding all of indices concatenated for easy access
         
         dMaxIndexToIndexDistance_mm = []
         
@@ -47,10 +47,6 @@ classdef DicomContour < matlab.mixin.Copyable
             end
             
             vdCentroidCoords = mean(m2dAllCoords,1);
-        end
-        
-        function dDimensionNumber = getPredominatePolygonDimensionNumber(obj)
-            dDimensionNumber = mode(obj.vdPolygonPlaneDimensionNumber);
         end
         
         function [] = setPolygonIndices(obj, oDicomImageVolume)
@@ -97,7 +93,7 @@ classdef DicomContour < matlab.mixin.Copyable
             
             obj.c1m2dPolygonIndices = c1m2dPolygonIndices;
             obj.vdPolygonPlaneIndices = vdPolygonPlaneIndices;
-            obj.c1m2dAllPolygonIndices = m2dAllIndices;
+            obj.m2dAllPolygonIndices = m2dAllIndices;
             
             if dNumPolygons > 0
                 if all(vdPolygonPlaneDimensionNumbers == vdPolygonPlaneDimensionNumbers(1))
@@ -136,7 +132,15 @@ classdef DicomContour < matlab.mixin.Copyable
             dPlaneDimensionNumber = oInteractiveImagingPlane.dPlaneDimensionNumber;
             dSliceIndex = oInteractiveImagingPlane.getCurrentSliceIndex();
             
-            c1m2dPolygonIndices = obj.c1m2dAllPolygonIndices( ((dSliceIndex - 0.5) <= obj.c1m2dAllPolygonIndices(:,dPlaneDimensionNumber)) & (obj.c1m2dAllPolygonIndices(:,dPlaneDimensionNumber) <= (dSliceIndex + 0.5)), :);
+            c1m2dPolygonIndices = obj.m2dAllPolygonIndices( ((dSliceIndex - 0.5) <= obj.m2dAllPolygonIndices(:,dPlaneDimensionNumber)) & (obj.m2dAllPolygonIndices(:,dPlaneDimensionNumber) <= (dSliceIndex + 0.5)), :);
+        end
+        
+        function dIndices = getSliceIndicesOfPolygons(obj, dDimensionNumber)
+            if obj.vdPolygonPlaneDimensionNumber == dDimensionNumber
+                dIndices = obj.vdPolygonPlaneIndices;
+            else
+                dIndices = [];
+            end
         end
         
         % ** FUNCTIONS FOR CONTOUR DISPLAY APP **
@@ -145,6 +149,47 @@ classdef DicomContour < matlab.mixin.Copyable
                 bBool = false;
             else
                 bBool = (obj.contourValidationResult.dContourGroupNumber == dContourGroupNumberForDisplay);
+            end
+        end
+    end
+    
+    methods (Static)
+        function dDimensionNumber = getPredominatePolygonDimensionNumber(c1oDicomContours)
+            dNumContours = length(c1oDicomContours);
+            
+            vdPredominateDimensionNumbers = zeros(dNumContours,1);
+            
+            for dContourIndex=1:dNumContours
+            	vdPredominateDimensionNumbers(dContourIndex) =...
+                    mode(c1oDicomContours{dContourIndex}.vdPolygonPlaneDimensionNumber);
+            end
+            
+            if all(vdPredominateDimensionNumbers(1) == vdPredominateDimensionNumbers)
+                dDimensionNumber = vdPredominateDimensionNumbers(1);
+            else
+                error(...
+                    'DicomContour:getPredominatePolygonDimensionNumber:ContoursInMultipleDimensions',...
+                    'Dicom contours are defined in multiple dimensions');
+            end
+        end
+        
+        function [dMinIndex,dMaxIndex] = getMinMaxSliceIndices(c1oDicomContours, dDimensionNumber)
+            dMinIndex = Inf;
+            dMaxIndex = -Inf;
+            
+            for dContourIndex=1:length(c1oDicomContours)
+                dIndices = c1oDicomContours{dContourIndex}.getSliceIndicesOfPolygons(dDimensionNumber);
+                
+                dMinIndex = min(dMinIndex, min(dIndices));
+                dMaxIndex = max(dMaxIndex, max(dIndices));
+            end
+        end
+        
+        function dMaxDistance = getMaxIndexToIndexDistanceFromContours(c1oDicomContours)
+            dMaxDistance = -Inf;
+            
+            for dContourIndex=1:length(c1oDicomContours)
+                dMaxDistance = max(dMaxDistance, c1oDicomContours{dContourIndex}.dMaxIndexToIndexDistance_mm);
             end
         end
     end

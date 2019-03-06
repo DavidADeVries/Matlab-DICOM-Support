@@ -17,6 +17,9 @@ classdef DicomImageVolume < matlab.mixin.Copyable
         dMinWindow = 1
         dMaxWindow
         
+        dThresholdMin
+        dThresholdMax
+        
         vdFieldOfViewCentreCoords_mm = []
     end
     
@@ -174,11 +177,8 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             dWindow = round(dWindowHigh - dWindowLow);
             dLevel = round(dLevel);
             
-            oControllerObject.oThresholdWindowEditFieldHandle.Value = dWindow;
-            oControllerObject.oThresholdLevelEditFieldHandle.Value = dLevel;
-            
-            oControllerObject.oThresholdMinEditFieldHandle.Value = dLevel - dWindow/2;
-            oControllerObject.oThresholdMaxEditFieldHandle.Value = dLevel + dWindow/2;
+            [dMin, dMax] = obj.getMinMaxFromWindowLevel(dWindow, dLevel);            
+            obj.updateDisplayThresholdsFromMinMaxValues(oControllerObject, dMin, dMax);
         end
         
         function [dRowPixelSpacing_mm, dColPixelSpacing_mm] = getPixelSpacingForPlane(obj, vdPlaneNormalUnitVector)
@@ -248,28 +248,74 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             
             vdCentreCoords_mm = [dX,dY,dZ];
         end
-    end
-    
-    methods (Static)        
-        function [] = updateDisplayThresholdsFromWindowLevelChange(oControllerObj)
-            window = oControllerObj.oThresholdWindowEditFieldHandle.Value;
-            level = oControllerObj.oThresholdLevelEditFieldHandle.Value;
+        
+        function [dMin, dMax] = getThresholdMinMax(obj)
+            dMin = obj.dThresholdMin;
+            dMax = obj.dThresholdMax;
+        end
+        
+        function [dWindow, dLevel] = getThresholdWindowLevel(obj)
+            [dWindow, dLevel] = obj.getWindowLevelFromMinMax(obj.dThresholdMin, obj.dThresholdMax);            
+        end
+        
+        function [] = updateDisplayThresholdsFromWindowLevelChange(obj, oControllerObj)
+            dWindow = oControllerObj.oThresholdWindowEditFieldHandle.Value;
+            dLevel = oControllerObj.oThresholdLevelEditFieldHandle.Value;
+            
+            [dMin, dMax] = DicomImageVolume.getMinMaxFromWindowLevel(dWindow, dLevel);
+                
+            obj.dThresholdMin = dMin;
+            obj.dThresholdMax = dMax;
             
             if ~isempty(oControllerObj.oThresholdMinEditFieldHandle) && ~isempty(oControllerObj.oThresholdMaxEditFieldHandle)
-                oControllerObj.oThresholdMinEditFieldHandle.Value = level - window/2;
-                oControllerObj.oThresholdMaxEditFieldHandle.Value = level + window/2;
+                oControllerObj.oThresholdMinEditFieldHandle.Value = dMin;
+                oControllerObj.oThresholdMaxEditFieldHandle.Value = dMax;
             end
         end 
                 
-        function [] = updateDisplayThresholdsFromMinMaxChange(oControllerObj)
-            min = oControllerObj.oThresholdMinEditFieldHandle.Value;
-            max = oControllerObj.oThresholdMaxEditFieldHandle.Value;
+        function [] = updateDisplayThresholdsFromMinMaxChange(obj, oControllerObj)
+            dMin = oControllerObj.oThresholdMinEditFieldHandle.Value;
+            dMax = oControllerObj.oThresholdMaxEditFieldHandle.Value;
+            
+            obj.dThresholdMin = dMin;
+            obj.dThresholdMax = dMax;
             
             if ~isempty(oControllerObj.oThresholdWindowEditFieldHandle) && ~isempty(oControllerObj.oThresholdLevelEditFieldHandle)
-                oControllerObj.oThresholdWindowEditFieldHandle.Value = max - min;
-                oControllerObj.oThresholdLevelEditFieldHandle.Value = (min + max)/2;
+                [dWindow, dLevel] = DicomImageVolume.getWindowLevelFromMinMax(dMin, dMax);
+                
+                oControllerObj.oThresholdWindowEditFieldHandle.Value = dWindow;
+                oControllerObj.oThresholdLevelEditFieldHandle.Value = dLevel;
             end
         end 
+                
+        function [] = updateDisplayThresholdsFromMinMaxValues(obj, oControllerObj, dMin, dMax)
+            obj.dThresholdMin = dMin;
+            obj.dThresholdMax = dMax;
+            
+            if ~isempty(oControllerObj.oThresholdMinEditFieldHandle) && ~isempty(oControllerObj.oThresholdMaxEditFieldHandle)
+                oControllerObj.oThresholdMinEditFieldHandle.Value = dMin;
+                oControllerObj.oThresholdMaxEditFieldHandle.Value = dMax;
+            end
+            
+            if ~isempty(oControllerObj.oThresholdWindowEditFieldHandle) && ~isempty(oControllerObj.oThresholdLevelEditFieldHandle)
+                [dWindow, dLevel] = DicomImageVolume.getWindowLevelFromMinMax(dMin, dMax);
+                
+                oControllerObj.oThresholdWindowEditFieldHandle.Value = dWindow;
+                oControllerObj.oThresholdLevelEditFieldHandle.Value = dLevel;
+            end
+        end 
+    end
+    
+    methods (Static)
+        function [dMin, dMax] = getMinMaxFromWindowLevel(dWindow, dLevel)
+            dMin = dLevel - dWindow/2;
+            dMax = dLevel + dWindow/2;
+        end
+        
+        function [dWindow, dLevel] = getWindowLevelFromMinMax(dMin, dMax)
+            dWindow = dMax - dMin;
+            dLevel = (dMin + dMax)/2;
+        end
     end
 end
 
