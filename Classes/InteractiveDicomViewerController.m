@@ -118,7 +118,10 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             end            
         end
         
-        function [] = setNewHandles(obj, c1oNewInteractiveImagingPlanes, varargin)
+        function [] = setNewHandlesAndHotkeys(obj, c1oNewInteractiveImagingPlanes, oFigureHandle, varargin)
+            % set new figure handle
+            obj.oFigureHandle = oFigureHandle;
+            
             % set new handles for interactive imaging planes
             for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
                 obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setNewHandles(c1oNewInteractiveImagingPlanes{dPlaneIndex});
@@ -133,14 +136,22 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             
             for dVarIndex=1:2:length(varargin)
                 switch varargin{dVarIndex}
-                    case 'WindowHandle'
+                    case 'WindowEditFieldHandle'
                         oNewWindowEditField = varargin{dVarIndex+1};
-                    case 'LevelHandle'
+                    case 'LevelEditFieldHandle'
                         oNewLevelEditField = varargin{dVarIndex+1};
-                    case 'MinHandle'
+                    case 'MinEditFieldHandle'
                         oNewMinEditField = varargin{dVarIndex+1};
-                    case 'MaxHandle'
-                        oNewMaxEditField = varargin{dVarIndex+1};  
+                    case 'MaxEditFieldHandle'
+                        oNewMaxEditField = varargin{dVarIndex+1}; 
+                    case 'AutoScrollButtonHandle'
+                        obj.oAutoScrollButtonHandle = varargin{dVarIndex+1};
+                    case 'AutoZoomSwitchHandle'
+                        obj.oAutoZoomSwitchHandle = varargin{dVarIndex+1};
+                    case 'AutoScrollHotkey'
+                        obj.chAutoScrollHotkey = varargin{dVarIndex+1};
+                    case 'AutoZoomHotkey'    
+                        obj.chAutoZoomToggleHotkey = varargin{dVarIndex+1};  
                     otherwise
                         error(...
                             'InterativeDicomViewerController:setNewHandle:InvalidNameValuePair',...
@@ -152,22 +163,12 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)                
                 obj.oThresholdWindowEditFieldHandle = oNewWindowEditField;
                 obj.oThresholdLevelEditFieldHandle = oNewLevelEditField;
-                
-                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdWindowLevelHandles(...
-                        oNewWindowEditField, oNewLevelEditField);
-                end
             end
             
             % set min/max handles
             if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)
                 obj.oThresholdMinEditFieldHandle = oNewMinEditField;
                 obj.oThresholdMaxEditFieldHandle = oNewMaxEditField;
-                
-                for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                    obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThresholdMinMaxlHandles(...
-                        oNewMinEditField, oNewMaxEditField);
-                end
             end
         end
         
@@ -388,8 +389,8 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             obj.bRightMouseButtonDown = false;
         end
         
-        function bEventOccurred = figureWindowKeyRelease(obj, event)
-            %bEventOccurred = figureWindowKeyRelease(obj, event)
+        function bEventOccurred = figureKeyRelease(obj, event)
+            %bEventOccurred = figureKeyRelease(obj, event)
             
             key = event.Key;
             bEventOccurred = true;
@@ -462,8 +463,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         end
         
         function [] = windowLevelEditFieldValueChanged(obj)
-            %[] = windowLevelEditFieldValueChanged(obj)
-            
+            %[] = windowLevelEditFieldValueChanged(obj)            
             obj.oDicomImageVolume.updateDisplayThresholdsFromWindowLevelChange(obj);            
             obj.updateDisplayThesholds();            
         end
