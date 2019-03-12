@@ -1,7 +1,7 @@
 classdef DicomImageVolume < matlab.mixin.Copyable
     %DicomImageVolume
     
-    properties
+    properties (Access = private)
         m3iVolumeData % 3D matrix of data
         vdVolumeDimensions
         
@@ -23,7 +23,7 @@ classdef DicomImageVolume < matlab.mixin.Copyable
         vdFieldOfViewCentreCoords_mm = []
     end
     
-    methods
+    methods (Access = public)
         function obj = DicomImageVolume(chDicomSeriesDir)
             %obj = ContourValidationImageVolume(dicomSeriesDir)
             [m3iVolume, vdVolumeDimensions, vdImagePosition, vdImageOrientation, vdPixelSpacing, dCentreOfSliceSeparation]...
@@ -159,7 +159,7 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             end              
         end
         
-        function [] = setDefaultThreshold(obj, oControllerObject)
+        function setDefaultThreshold(obj, oControllerObject)
             viVolumeVector = obj.m3iVolumeData(:);
             
             dMinAll = double(min(viVolumeVector));            
@@ -258,7 +258,7 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             [dWindow, dLevel] = obj.getWindowLevelFromMinMax(obj.dThresholdMin, obj.dThresholdMax);            
         end
         
-        function [] = updateDisplayThresholdsFromWindowLevelChange(obj, oControllerObj)
+        function updateDisplayThresholdsFromWindowLevelChange(obj, oControllerObj)
             dWindow = oControllerObj.oThresholdWindowEditFieldHandle.Value;
             dLevel = oControllerObj.oThresholdLevelEditFieldHandle.Value;
             
@@ -273,7 +273,7 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             end
         end 
                 
-        function [] = updateDisplayThresholdsFromMinMaxChange(obj, oControllerObj)
+        function updateDisplayThresholdsFromMinMaxChange(obj, oControllerObj)
             dMin = oControllerObj.oThresholdMinEditFieldHandle.Value;
             dMax = oControllerObj.oThresholdMaxEditFieldHandle.Value;
             
@@ -288,7 +288,7 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             end
         end 
                 
-        function [] = updateDisplayThresholdsFromMinMaxValues(obj, oControllerObj, dMin, dMax)
+        function updateDisplayThresholdsFromMinMaxValues(obj, oControllerObj, dMin, dMax)
             obj.dThresholdMin = dMin;
             obj.dThresholdMax = dMax;
             
