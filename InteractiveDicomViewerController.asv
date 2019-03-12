@@ -341,11 +341,9 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                             interactivePlane = c1oImagingPlanes{dSelectedIndex};
                             
                             [dMin,dMax] = interactivePlane.getThresholdMinMaxFromMouse(obj.oFigureHandle.CurrentPoint, obj.oDicomImageVolume);
+                            obj.oDicomImageVolume.updateDisplayThresholdsFromMinMaxValues(obj, dMin, dMax);
                             
-                            obj.oDicomImageVolume.setWindowLevelFromMinMax(dMin, dMax);
-                            
-                            obj.updateWindowLevelForImagingPlanes();
-                            obj.updateWindowLevelForControls();
+                            obj.updateDisplayThesholds();
                         end
                         
                         drawnow;
@@ -355,31 +353,15 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             end            
         end
         
-        function [] = updateWindowLevelForImagingPlanes(obj)
+        function [] = updateDisplayThesholds(obj)
             %[] = updateDisplayThesholds(obj)
             for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                [dMin, dMax] = obj.oDicomImageVolume.getMinMaxFromWindowLevel();
-                
+                [dMin, dMax] = obj.oDicomImageVolume.getThresholdMinMax();
                 obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThreshold(dMin, dMax);
             end 
         end
         
-        function updateWindowLevelForControls(obj)
-            
-            if ~isempty(obj.oThresholdMinEditFieldHandle) && ~isempty(obj.oThresholdMaxEditFieldHandle)
-                [dMin, dMax] = obj.oDicomImageVolume.getMinMaxFromWindowLevel();
-                
-                obj.oThresholdMinEditFieldHandle.Value = dMin;
-                obj.oThresholdMaxEditFieldHandle.Value = dMax;
-            end
-            
-            if ~isempty(obj.oThresholdWindowEditFieldHandle) && ~isempty(obj.oThresholdLevelEditFieldHandle)
-                [dWindow, dLevel] = obj.oDicomImageVolume.getWindowLevel();
-                
-                obj.oThresholdWindowEditFieldHandle.Value = dWindow;
-                obj.oThresholdLevelEditFieldHandle.Value = dLevel;
-            end
-        end
+        function updateWindow
         
         function [] = figureWindowButtonMotion(obj)
             % [] = figureWindowButtonMotion(obj)
@@ -462,18 +444,14 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         
         function [] = minMaxEditFieldValueChanged(obj)
             %[] = minMaxEditFieldValueChanged(obj)            
-            obj.oDicomImageVolume.setWindowLevelFromMinMax(obj.oThresholdMinEditFieldHandle.Value, obj.oThresholdMaxEditFieldHandle.Value);
-            
-            obj.updateWindowLevelForImagingPlanes();
-            obj.updateWindowLevelForControls();
+            obj.oDicomImageVolume.updateDisplayThresholdsFromMinMaxChange(obj);            
+            obj.updateDisplayThesholds();            
         end
         
         function [] = windowLevelEditFieldValueChanged(obj)
-            %[] = windowLevelEditFieldValueChanged(obj)   
-            obj.oDicomImageVolume.setWindowLevelFromWindowLevel(obj.oThresholdWindowEditFieldHandle.Value, obj.oThresholdLevelEditFieldHandle.Value);
-            
-            obj.updateWindowLevelForImagingPlanes();
-            obj.updateWindowLevelForControls();          
+            %[] = windowLevelEditFieldValueChanged(obj)            
+            obj.oDicomImageVolume.updateDisplayThresholdsFromWindowLevelChange(obj);            
+            obj.updateDisplayThesholds();            
         end
 
         function [] = figureKeyPress(obj, event)

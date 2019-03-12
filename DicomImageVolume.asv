@@ -4,8 +4,16 @@ classdef DicomImageVolume < matlab.mixin.Copyable
     properties (Access = private)
         m3xVolumeData % 3D matrix of data
         
-        oDicomImageVolumeGeometry = DicomImageVolumeGeometry.empty        
-        oImageWindowLevel = ImageWindowLevel.empty
+        oDicomImageVolumeGeometry = DicomImageVolumeGeometry.empty
+        
+        dMinLevel
+        dMaxLevel
+        
+        dMinWindow = 1
+        dMaxWindow
+        
+        dThresholdMin
+        dThresholdMax
         
         vdFieldOfViewCentreCoords_mm = []
     end
@@ -30,17 +38,34 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             % OUTPUTS ARGUMENTS:
             %  obj: Constructed object
             
-            [oDicomImageVolumeGeometry, m3xVolumeData] = DicomImageVolumeGeometry(chDicomSeriesDir, 'LoadGeometryOnly', false, varargin{:});
+            [oDicomImageVolumeGeometry, m3xVolume] = DicomImageVolumeGeometry(chDicomSeriesDir, 'LoadGeometryOnly', false, varargin{:})
             
-            obj.oDicomImageVolumeGeometry = oDicomImageVolumeGeometry;
-            obj.oImageWindowLevel = ImageWindowLevel(m3xVolumeData);
+            [m3iVolume, vdVolumeDimensions, vdImagePosition, vdImageOrientation, vdPixelSpacing, dCentreOfSliceSeparation]...
+                = getDicomSeriesVolumeAndGeometry(chDicomSeriesDir, 'Verbose', true);
             
-            obj.m3xVolumeData = m3xVolumeData;
+            obj.m3iVolumeData = m3iVolume;
+            obj.vdVolumeDimensions = vdVolumeDimensions;
+            
+            dAllDimMin = double(min(m3iVolume(:)));
+            dAllDimMax = double(max(m3iVolume(:)));
+            
+            obj.dMinLevel = dAllDimMin;
+            obj.dMaxLevel = dAllDimMax;
+            
+            obj.dMaxWindow = dAllDimMax - dAllDimMin;
+            
+            obj.vdImagePosition_mm = vdImagePosition;
+            obj.vdImageOrientation = vdImageOrientation;
+            
+            obj.vdInPlanePixelSpacing_mm = vdPixelSpacing;
+            obj.dCentreOfSliceSeparation_mm = dCentreOfSliceSeparation;
         end
                 
         function [vdI,vdJ,vdK] = getVoxelIndicesFromCoordinates(obj, vdX, vdY, vdZ)
             % switch j and i to get from DICOM's (c,r,s) to MATLAB (r,c,s)
-            [vdJ,vdI,vdK] = obj.oDicomImageVolumeGeometry.getVoxelIndicesFromCoordinates(vdX, vdY, vdZ);
+            [vdJ,vdI,vdK] = getVoxelIndicesFromCoordinates(vdX, vdY, vdZ,...
+                obj.vdImagePosition_mm, obj.vdImageOrientation,...
+                obj.vdInPlanePixelSpacing_mm, obj.dCentreOfSliceSeparation_mm);
             
             % plus 1 to get from DICOM indices starting at 0 into MATLAB's starting at 1
             vdI = vdI + 1;
@@ -49,7 +74,9 @@ classdef DicomImageVolume < matlab.mixin.Copyable
         end
         
         function [vdX,vdY,vdZ] = getCoordinatesFromVoxelIndices(obj, vdI, vdJ, vdK)
-            [vdX,vdY,vdZ] = obj.oDicomImageVolumeGeometry.getCoordinatesFromVoxelIndices(vdJ-1, vdI-1, vdK-1); % minus 1 to get into DICOM indices starting at 0 instead of MATLAB's 1, switch i and j to go from DICOM (c,r,s) to MATLAB (r,c,s)
+            [vdX,vdY,vdZ] = getCoordinatesFromVoxelIndices(vdJ-1, vdI-1, vdK-1,... % minus 1 to get into DICOM indices starting at 0 instead of MATLAB's 1, switch i and j to go from DICOM (c,r,s) to MATLAB (r,c,s)
+                obj.vdImagePosition_mm, obj.vdImageOrientation,...
+                obj.vdInPlanePixelSpacing_mm, obj.dCentreOfSliceSeparation_mm);
         end
         
         function [dSagittalDim, dCoronalDim, dAxialDim] = getPlaneDimensions(obj)
@@ -291,6 +318,18 @@ classdef DicomImageVolume < matlab.mixin.Copyable
                 oControllerObj.oThresholdLevelEditFieldHandle.Value = dLevel;
             end
         end 
+    end
+    
+    methods (Static)
+        function [dMin, dMax] = getMinMaxFromWindowLevel(dWindow, dLevel)
+            dMin = dLevel - dWindow/2;
+            dMax = dLevel + dWindow/2;
+        end
+        
+        function [dWindow, dLevel] = getWindowLevelFromMinMax(dMin, dMax)
+            dWindow = dMax - dMin;
+            dLevel = (dMin + dMax)/2;
+        end
     end
 end
 
