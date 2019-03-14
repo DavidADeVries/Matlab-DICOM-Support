@@ -37,7 +37,27 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             
             obj.m3xVolumeData = m3xVolumeData;
         end
-                
+        
+        function setWindowLevelFromMinMax(obj, dMin, dMax)
+            obj.oImageWindowLevel.setFromMinMaxValues(dMin, dMax);
+        end
+        
+        function setWindowLevelFromWindowLevel(obj, dWindow, dLevel)
+            obj.oImageWindowLevel.setFromWindowLevelValues(dWindow, dLevel);
+        end
+        
+        function [dMin, dMax] = getMinMaxFromWindowLevel(obj)
+            [dMin, dMax] = obj.oImageWindowLevel.getMinMaxValues();
+        end
+        
+        function c1oBoundingLines = getVolumeBoundingLines(obj)
+            c1oBoundingLines = obj.oDicomImageVolumeGeometry.getVolumeBoundingLines();
+        end
+    end
+       
+    
+    methods (Access = private)
+        
         function [vdI,vdJ,vdK] = getVoxelIndicesFromCoordinates(obj, vdX, vdY, vdZ)
             % switch j and i to get from DICOM's (c,r,s) to MATLAB (r,c,s)
             [vdJ,vdI,vdK] = obj.oDicomImageVolumeGeometry.getVoxelIndicesFromCoordinates(vdX, vdY, vdZ);

@@ -1,6 +1,11 @@
 classdef InteractiveDicomViewerController < matlab.mixin.Copyable
     %InteractiveDicomViewerController
     
+    
+    % *********************************************************************   ORDERING: 1 Abstract        X.1 Public       X.X.1 Not Constant
+    % *                            PROPERTIES                             *             2 Not Abstract -> X.2 Protected -> X.X.2 Constant
+    % *********************************************************************                               X.3 Private
+    
     properties(Constant)
         dAutoScrollInterframePause_s = 0.05
         
@@ -16,13 +21,17 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
     end
     
     properties (SetAccess = private)
+        % class objects
         oDicomImageVolume = DicomImageVolume.empty        
+        
         c1oDicomContours = {}
         c1oInteractiveImagingPlanes = {} % cell array of InteractiveImagingPlane objects
         
+        % hotkeys
         chAutoZoomToggleHotkey = 'equal'
         chAutoScrollHotkey = 'subtract'
         
+        % UI state flags
         bCtrlKeyPressedDown = false
         
         bLeftMouseButtonDown = false
@@ -30,71 +39,56 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         
         dContourIndexToCentreOn = 1
         
-        oFigureHandle = []
+        % handles to UI elements
+        hFigureHandle = []
         
-        oAutoScrollButtonHandle = []
-        oAutoZoomSwitchHandle = []
+        hAutoScrollButtonHandle = []
+        hAutoZoomSwitchHandle = []
         
-        oThresholdMinEditFieldHandle = []
-        oThresholdMaxEditFieldHandle = []
+        hWindowLevelMinEditFieldHandle = []
+        hWindowLevelMaxEditFieldHandle = []
         
-        oThresholdWindowEditFieldHandle = []
-        oThresholdLevelEditFieldHandle = []
+        hWindowLevelWindowEditFieldHandle = []
+        hWindowLevelLevelEditFieldHandle = []
         
-    end
-    
-    methods (Access = protected)
-        function cpObj = copyElement(obj)
-            cpObj = copyElement@matlab.mixin.Copyable(obj);
-            
-            cpObj.oDicomImageVolume = copy(cpObj.oDicomImageVolume);
-            
-            for dPlaneIndex=1:length(cpObj.c1oInteractiveImagingPlanes)
-                cpObj.c1oInteractiveImagingPlanes{dPlaneIndex} = copy(cpObj.c1oInteractiveImagingPlanes{dPlaneIndex});
-            end
-            
-            for dContourIndex=1:length(cpObj.c1oDicomContours)
-                cpObj.c1oDicomContours{dContourIndex} = copy(cpObj.c1oDicomContours{dContourIndex});
-            end
-        end 
     end
     
     methods (Access = public)
         
-        function obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, varargin)
-            %obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, oFigureHandle, varargin)
+        function obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, hFigureHandle, varargin)
+            %obj = InteractiveDicomViewerController(c1oInteractiveImagingPlanes, hFigureHandle, varargin)
             
             % set interactive imaging planes
             obj.c1oInteractiveImagingPlanes = c1oInteractiveImagingPlanes;
             
             
             % set some figure handle properities
-            obj.oFigureHandle = oFigureHandle;
-            obj.oFigureHandle.DoubleBuffer = 'off';
-            obj.oFigureHandle.Interruptible = 'on';
-            obj.oFigureHandle.BusyAction = 'cancel';
+            obj.hFigureHandle = hFigureHandle;
+            obj.hFigureHandle.DoubleBuffer = 'off';
+            obj.hFigureHandle.Interruptible = 'on';
+            obj.hFigureHandle.BusyAction = 'cancel';
             
             % if given, set window/level & min/max handles
-            oWindowHandle = [];
-            oLevelHandle = [];
+            hWindowHandle = [];
+            hLevelHandle = [];
             
-            oMinHandle = [];
-            oMaxHandle = [];
+            hMinHandle = [];
+            hMaxHandle = [];
             
             for dVarIndex=1:2:length(varargin)
                 switch varargin{dVarIndex}
-                    case 'WindowEditFieldHandle'
-                        oWindowHandle = varargin{dVarIndex+1};
-                    case 'LevelEditFieldHandle'
-                        oLevelHandle = varargin{dVarIndex+1};
-                    case 'MinEditFieldHandle'
-                        obj.oThresholdMinEditFieldHandle = varargin{dVarIndex+1};
-                    case 'MaxEditFieldHandle'
-                        obj.oThresholdMaxEditFieldHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelWindowEditFieldHandle'
+                        hWindowHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelLevelEditFieldHandle'
+                        hLevelHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelMinEditFieldHandle'
+                        obj.hWindowLevelMinEditFieldHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelMaxEditFieldHandle'
+                        obj.hWindowLevelMaxEditFieldHandle = varargin{dVarIndex+1};
                     case 'AutoScrollButtonHandle'
-                        obj.oAutoScrollButtonHandle = varargin{dVarIndex+1};
+                        obj.hAutoScrollButtonHandle = varargin{dVarIndex+1};
                     case 'AutoZoomSwitchHandle'
-                        obj.oAutoZoomSwitchHandle = varargin{dVarIndex+1};
+                        obj.hAutoZoomSwitchHandle = varargin{dVarIndex+1};
                     case 'AutoScrollHotkey'
                         obj.chAutoScrollHotkey = varargin{dVarIndex+1};
                     case 'AutoZoomHotkey'    
@@ -107,48 +101,72 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             end
             
             % set window/level handles
-            if ~isempty(oWindowHandle) && ~isempty(oLevelHandle)
-                obj.oThresholdWindowEditFieldHandle = oWindowHandle;
-                obj.oThresholdLevelEditFieldHandle = oLevelHandle;
+            if ~isempty(hWindowHandle) && ~isempty(hLevelHandle)
+                obj.hWindowLevelWindowEditFieldHandle = hWindowHandle;
+                obj.hWindowLevelLevelEditFieldHandle = hLevelHandle;
+            elseif ~isempty(hWindowHandle) || ~isempty(hLevelHandle)
+                error(...
+                    'InteractiveDicomViewerController:Constructor:InvalidParameters',...
+                    'Both a window and level edit field handle must be given');
             end
             
             % set min/max handles
-            if ~isempty(oMinHandle) && ~isempty(oMaxHandle)
-                obj.oThresholdMinEditFieldHandle = oMinHandle;
-                obj.oThresholdMaxEditFieldHandle = oMaxHandle;
+            if ~isempty(hMinHandle) && ~isempty(hMaxHandle)
+                obj.hWindowLevelMinEditFieldHandle = hMinHandle;
+                obj.hWindowLevelMaxEditFieldHandle = hMaxHandle;
+            elseif ~isempty(hMinHandle) || ~isempty(hMaxHandle)
+                error(...
+                    'InteractiveDicomViewerController:Constructor:InvalidParameters',...
+                    'Both a window/level min and max edit field handle must be given');
             end            
         end
         
-        function [] = setNewHandlesAndHotkeys(obj, c1oNewInteractiveImagingPlanes, oFigureHandle, varargin)
-            % set new figure handle
-            obj.oFigureHandle = oFigureHandle;
-            
-            % set new handles for interactive imaging planes
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setNewHandles(c1oNewInteractiveImagingPlanes{dPlaneIndex});
-            end
-            
-            % find which threshold fields were given
-            oNewWindowEditField = [];
-            oNewLevelEditField = [];
-            
-            oNewMinEditField = [];
-            oNewMaxEditField = [];
-            
+        function setNewHandlesAndHotkeys(obj, varargin)
+            %obj = NewClass(input1, input2)
+            %
+            % SYNTAX:
+            %  setNewHandlesAndHotkeys(__, 'FigureHandle', hFigureHandle)
+            %  setNewHandlesAndHotkeys(__, 'InteractiveImagingPlanes', c1oInteractiveImagingPlanes)
+            %  setNewHandlesAndHotkeys(__, 'WindowEditFieldHandle', hWindowLevelWindowEditFieldHandle)
+            %  setNewHandlesAndHotkeys(__, 'LevelEditFieldHandle', hWindowLevelLevelEditFieldHandle)
+            %  setNewHandlesAndHotkeys(__, 'MinEditFieldHandle', hWindowLevelMinEditFieldHandle)
+            %  setNewHandlesAndHotkeys(__, 'MaxEditFieldHandle', hWindowLevelMaxditFieldHandle)
+            %  setNewHandlesAndHotkeys(__, 'AutoScrollButtonHandle', hAutoScrollButtonHandle)
+            %  setNewHandlesAndHotkeys(__, 'AutoZoomSwitchHandle', hAutoZoomSwitchHandle)
+            %  setNewHandlesAndHotkeys(__, 'AutoScrollHotkey', hAutoScrollHotkey)
+            %  setNewHandlesAndHotkeys(__, 'AutoZoomHotkey' , hAutoZoomHotkey)
+            %
+            % DESCRIPTION:
+            %  Constructor for NewClass
+            %
+            % INPUT ARGUMENTS:
+            %  input1: What input1 is
+            %
+            % OUTPUTS ARGUMENTS:
+            %  None
+                        
             for dVarIndex=1:2:length(varargin)
                 switch varargin{dVarIndex}
-                    case 'WindowEditFieldHandle'
-                        oNewWindowEditField = varargin{dVarIndex+1};
-                    case 'LevelEditFieldHandle'
-                        oNewLevelEditField = varargin{dVarIndex+1};
-                    case 'MinEditFieldHandle'
-                        oNewMinEditField = varargin{dVarIndex+1};
-                    case 'MaxEditFieldHandle'
-                        oNewMaxEditField = varargin{dVarIndex+1}; 
+                    case 'FigureHandle'
+                        obj.hFigureHandle = varargin{dVarIndex+1};
+                    case 'InteractiveImagingPlanes'
+                        c1oInteractiveImagingPlanes = varargin{dVarIndex+1};
+                        
+                        for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                            obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setNewHandles(c1oInteractiveImagingPlanes{dPlaneIndex});
+                        end
+                    case 'WindowLevelWindowEditFieldHandle'
+                        obj.hWindowLevelWindowEditFieldHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelLevelEditFieldHandle'
+                        obj.hWindowLevelLevelEditFieldHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelMinEditFieldHandle'
+                        obj.hWindowLevelMinEditFieldHandle = varargin{dVarIndex+1};
+                    case 'WindowLevelMaxEditFieldHandle'
+                        obj.hWindowLevelMaxEditFieldHandle = varargin{dVarIndex+1}; 
                     case 'AutoScrollButtonHandle'
-                        obj.oAutoScrollButtonHandle = varargin{dVarIndex+1};
+                        obj.hAutoScrollButtonHandle = varargin{dVarIndex+1};
                     case 'AutoZoomSwitchHandle'
-                        obj.oAutoZoomSwitchHandle = varargin{dVarIndex+1};
+                        obj.hAutoZoomSwitchHandle = varargin{dVarIndex+1};
                     case 'AutoScrollHotkey'
                         obj.chAutoScrollHotkey = varargin{dVarIndex+1};
                     case 'AutoZoomHotkey'    
@@ -159,18 +177,19 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                             ['Invalid parameter name ', varargin{dVarIndex}]);                        
                 end
             end
+        end
+        
+        function updateInteractiveImagingPlanes(obj)
+            %[] = setInteractiveImagingPlanes(obj)            
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.updateFullAxis(obj.oDicomImageVolume);
+            end 
             
-            % set window/level handles
-            if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)                
-                obj.oThresholdWindowEditFieldHandle = oNewWindowEditField;
-                obj.oThresholdLevelEditFieldHandle = oNewLevelEditField;
-            end
+            % Draw contour
+            obj.updateContoursForImagingPlanes();
             
-            % set min/max handles
-            if ~isempty(oNewWindowEditField) && ~isempty(oNewLevelEditField)
-                obj.oThresholdMinEditFieldHandle = oNewMinEditField;
-                obj.oThresholdMaxEditFieldHandle = oNewMaxEditField;
-            end
+            % Draw slice locations
+            obj.updateSliceLocationsForImagingPlanes();            
         end
         
         function [] = setDicomImageVolume(obj, oDicomImageVolume)
@@ -185,10 +204,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             obj.c1oDicomContours = c1oDicomContours;
         end
         
-        function [] = setDefaultThreshold(obj)
-            obj.oDicomImageVolume.setDefaultThreshold(obj);
-        end
-        
         function [] = setDefaultImagingPlaneValues(obj)
             %[] = ContourValidation_setDefaultImagingPlaneValue(app)
             if ~obj.bDefaultCentreOnContourCentroid || obj.getNumberOfContours() == 0
@@ -201,6 +216,9 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                 obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setDefaultValues(obj.oDicomImageVolume, centreCoords_mm);                               
             end 
         end
+        
+        
+        % >>>>>>>>>>>>>>>>>>>>> GUI CALLBACKS <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         
         function [] = autoScrollContouredSlicesButtonPushed(obj)
             %[] = autoScrollContouredSlicesButtonPushed(obj)
@@ -243,11 +261,11 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         function [] = autoZoomSwitchValueChanged(obj)
             %[] = autoZoomSwitchValueChanged(obj)
             
-            if strcmp(obj.oAutoZoomSwitchHandle.Value, obj.chAutoZoomWideLabel)
+            if strcmp(obj.hAutoZoomSwitchHandle.Value, obj.chAutoZoomWideLabel)
                 for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
                     obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setFieldOfViewToMax(obj.oDicomImageVolume);
                 end
-            elseif strcmp(obj.oAutoZoomSwitchHandle.Value, obj.chAutoZoomTightLabel)
+            elseif strcmp(obj.hAutoZoomSwitchHandle.Value, obj.chAutoZoomTightLabel)
                 dFieldOfView_mm = obj.dTightZoomLevelMultiplier * DicomContour.getMaxIndexToIndexDistanceFromContours(obj.c1oDicomContours);
                                 
                 for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
@@ -255,43 +273,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                 end
             else
                 error('Invalid Auto Zoom Switch value');
-            end            
-        end
-        
-        function [] = toggleAutoZoomSwitch(obj)
-            %[] = toggleAutoZoomSwitch(obj)            
-            if strcmp(obj.oAutoZoomSwitchHandle.Value, obj.chAutoZoomWideLabel)
-                obj.oAutoZoomSwitchHandle.Value = obj.chAutoZoomTightLabel;
-            else
-                obj.oAutoZoomSwitchHandle.Value = obj.chAutoZoomWideLabel;
-            end
-            
-            obj.autoZoomSwitchValueChanged();            
-        end
-        
-        function [] = updateSliceLocations(obj)
-            %updateSliceLocations(obj)
-            
-            dNumImagingPlanes = length(obj.c1oInteractiveImagingPlanes);
-            
-            for dPlaneIndex=1:dNumImagingPlanes
-                vbPlaneSelect = true(dNumImagingPlanes,1);
-                vbPlaneSelect(dPlaneIndex) = false;
-                
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.updateSliceLocations(obj.c1oInteractiveImagingPlanes(vbPlaneSelect));
-            end            
-        end
-        
-        function [] = drawSliceLocations(obj)
-            %drawSliceLocations(obj)
-            
-            dNumImagingPlanes = length(obj.c1oInteractiveImagingPlanes);
-            
-            for dPlaneIndex=1:dNumImagingPlanes
-                vbPlaneSelect = true(dNumImagingPlanes,1);
-                vbPlaneSelect(dPlaneIndex) = false;
-                
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.drawSliceLocations(obj.c1oInteractiveImagingPlanes(vbPlaneSelect));
             end            
         end
 
@@ -308,18 +289,13 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             if isempty(oImagingPlane)
                 error('No Interactive Imaging Plane for given spinner handle');
             else            
-                oImagingPlane.setSliceToSpinnerValue(...
-                    obj.oDicomImageVolume, obj.c1oDicomContours);
+                oImagingPlane.setSliceIndexToSpinnerValue();
+                
+                oImagingPlane.setImage(obj.oDicomImageVolume);
+                obj.drawContours(c1oDicomContours);  
                 
                 obj.updateSliceLocations();
             end
-        end
-        
-        function [] = drawContours(obj)
-            %[] = drawContours(obj)
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.drawContours(obj.c1oDicomContours);
-            end  
         end
         
         function [] = figureWindowButtonDown(obj, oEvent)
@@ -335,15 +311,17 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                         c1oAxesHandles = obj.getAxesHandles();
                         c1oImagingPlanes = obj.c1oInteractiveImagingPlanes;
                         
-                        dSelectedIndex = obj.findAppObjectMouseIsOver(obj.oFigureHandle, c1oAxesHandles);
+                        dSelectedIndex = obj.findAppObjectMouseIsOver(obj.hFigureHandle, c1oAxesHandles);
                         
                         if dSelectedIndex ~= 0 % is over an axis
                             interactivePlane = c1oImagingPlanes{dSelectedIndex};
                             
-                            [dMin,dMax] = interactivePlane.getThresholdMinMaxFromMouse(obj.oFigureHandle.CurrentPoint, obj.oDicomImageVolume);
-                            obj.oDicomImageVolume.updateDisplayThresholdsFromMinMaxValues(obj, dMin, dMax);
+                            [dMin,dMax] = interactivePlane.getThresholdMinMaxFromMouse(obj.hFigureHandle.CurrentPoint, obj.oDicomImageVolume);
                             
-                            obj.updateDisplayThesholds();
+                            obj.oDicomImageVolume.setWindowLevelFromMinMax(dMin, dMax);
+                            
+                            obj.updateWindowLevelForImagingPlanes();
+                            obj.updateWindowLevelForControls();
                         end
                         
                         drawnow;
@@ -352,16 +330,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                     obj.rightMouseButtonDown = true;
             end            
         end
-        
-        function [] = updateDisplayThesholds(obj)
-            %[] = updateDisplayThesholds(obj)
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                [dMin, dMax] = obj.oDicomImageVolume.getThresholdMinMax();
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThreshold(dMin, dMax);
-            end 
-        end
-        
-        function updateWindow
         
         function [] = figureWindowButtonMotion(obj)
             % [] = figureWindowButtonMotion(obj)
@@ -393,19 +361,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             end            
         end
         
-        function [] = setInteractiveImagingPlanes(obj)
-            %[] = setInteractiveImagingPlanes(obj)            
-            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
-                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setFullAxis(obj.oDicomImageVolume);
-            end 
-            
-            % Draw contour
-            obj.drawContours();
-            
-            % Draw slice locations
-            obj.drawSliceLocations();            
-        end
-        
         function [] = uiFigureWindowScrollWheel(obj, oEvent)
             %[] = uiFigureWindowScrollWheel(obj, event)
             
@@ -415,7 +370,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             c1oAxesHandles = obj.getAxesHandles();
             c1oInteractivePlanes = obj.c1oInteractiveImagingPlanes;
             
-            dSelectedIndex = obj.findAppObjectMouseIsOver(obj.oFigureHandle, c1oAxesHandles);
+            dSelectedIndex = obj.findAppObjectMouseIsOver(obj.hFigureHandle, c1oAxesHandles);
             
             if dSelectedIndex ~= 0 % is over an axis
                 oInteractivePlane = c1oInteractivePlanes{dSelectedIndex};
@@ -444,14 +399,18 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         
         function [] = minMaxEditFieldValueChanged(obj)
             %[] = minMaxEditFieldValueChanged(obj)            
-            obj.oDicomImageVolume.updateDisplayThresholdsFromMinMaxChange(obj);            
-            obj.updateDisplayThesholds();            
+            obj.oDicomImageVolume.setWindowLevelFromMinMax(obj.hWindowLevelMinEditFieldHandle.Value, obj.hWindowLevelMaxEditFieldHandle.Value);
+            
+            obj.updateWindowLevelForImagingPlanes();
+            obj.updateWindowLevelForControls();
         end
         
         function [] = windowLevelEditFieldValueChanged(obj)
-            %[] = windowLevelEditFieldValueChanged(obj)            
-            obj.oDicomImageVolume.updateDisplayThresholdsFromWindowLevelChange(obj);            
-            obj.updateDisplayThesholds();            
+            %[] = windowLevelEditFieldValueChanged(obj)   
+            obj.oDicomImageVolume.setWindowLevelFromWindowLevel(obj.hWindowLevelWindowEditFieldHandle.Value, obj.hWindowLevelLevelEditFieldHandle.Value);
+            
+            obj.updateWindowLevelForImagingPlanes();
+            obj.updateWindowLevelForControls();          
         end
 
         function [] = figureKeyPress(obj, event)
@@ -463,13 +422,88 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         end
     end
     
+    
+    
+    % *********************************************************************   ORDERING: 1 Abstract     -> X.1 Not Static 
+    % *                        PROTECTED METHODS                          *             2 Not Abstract    X.2 Static
+    % *********************************************************************
+    
+    methods (Access = protected)
+        
+        function cpObj = copyElement(obj)
+            cpObj = copyElement@matlab.mixin.Copyable(obj);
+            
+            cpObj.oDicomImageVolume = copy(cpObj.oDicomImageVolume);
+            
+            for dPlaneIndex=1:length(cpObj.c1oInteractiveImagingPlanes)
+                cpObj.c1oInteractiveImagingPlanes{dPlaneIndex} = copy(cpObj.c1oInteractiveImagingPlanes{dPlaneIndex});
+            end
+            
+            for dContourIndex=1:length(cpObj.c1oDicomContours)
+                cpObj.c1oDicomContours{dContourIndex} = copy(cpObj.c1oDicomContours{dContourIndex});
+            end
+        end 
+    end
+    
+    
+    
+    % *********************************************************************   ORDERING: 1 Abstract     -> X.1 Not Static
+    % *                         PRIVATE METHODS                           *             2 Not Abstract    X.2 Static
+    % *********************************************************************
+    
     methods (Access = private)
+        
+        
+        function toggleAutoZoomSwitch(obj)
+            %toggleAutoZoomSwitch(obj)            
+            if strcmp(obj.hAutoZoomSwitchHandle.Value, obj.chAutoZoomWideLabel)
+                obj.hAutoZoomSwitchHandle.Value = obj.chAutoZoomTightLabel;
+            else
+                obj.hAutoZoomSwitchHandle.Value = obj.chAutoZoomWideLabel;
+            end
+            
+            obj.autoZoomSwitchValueChanged();            
+        end
+        
         function dNumContours = getNumberOfContours(obj)
             dNumContours = length(obj.c1oDicomContours);
         end
         
         function oContour = getContourToCentreOn(obj)
             oContour = obj.c1oDicomContours{obj.dContourIndexToCentreOn};
+        end
+        
+        function updateContoursForImagingPlanes(obj)
+            %[] = drawContours(obj)
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.drawContours(obj.c1oDicomContours);
+            end  
+        end
+        
+        function [] = updateWindowLevelForImagingPlanes(obj)
+            %[] = updateDisplayThesholds(obj)
+            for dPlaneIndex=1:length(obj.c1oInteractiveImagingPlanes)
+                [dMin, dMax] = obj.oDicomImageVolume.getMinMaxFromWindowLevel();
+                
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.setThreshold(dMin, dMax);
+            end 
+        end
+        
+        function updateWindowLevelForControls(obj)
+            
+            if ~isempty(obj.hWindowLevelMinEditFieldHandle) && ~isempty(obj.hWindowLevelMaxEditFieldHandle)
+                [dMin, dMax] = obj.oDicomImageVolume.getMinMaxFromWindowLevel();
+                
+                obj.hWindowLevelMinEditFieldHandle.Value = dMin;
+                obj.hWindowLevelMaxEditFieldHandle.Value = dMax;
+            end
+            
+            if ~isempty(obj.hWindowLevelWindowEditFieldHandle) && ~isempty(obj.hWindowLevelLevelEditFieldHandle)
+                [dWindow, dLevel] = obj.oDicomImageVolume.getWindowLevel();
+                
+                obj.hWindowLevelWindowEditFieldHandle.Value = dWindow;
+                obj.hWindowLevelLevelEditFieldHandle.Value = dLevel;
+            end
         end
         
         function c1oAxesHandles = getAxesHandles(obj)
@@ -480,10 +514,38 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                 c1oAxesHandles{dPlaneIndex} = obj.c1oInteractiveImagingPlanes{dPlaneIndex}.getAxesHandle();
             end  
         end
+        
+        function [] = updateSliceLocations(obj)
+            %updateSliceLocations(obj)
+            
+            dNumImagingPlanes = length(obj.c1oInteractiveImagingPlanes);
+            
+            for dPlaneIndex=1:dNumImagingPlanes
+                vbPlaneSelect = true(dNumImagingPlanes,1);
+                vbPlaneSelect(dPlaneIndex) = false;
+                
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.updateSliceLocations(obj.c1oInteractiveImagingPlanes(vbPlaneSelect));
+            end            
+        end
+        
+        function [] = updateSliceLocationsForImagingPlanes(obj)
+            %drawSliceLocations(obj)
+            
+            dNumImagingPlanes = length(obj.c1oInteractiveImagingPlanes);
+            
+            for dPlaneIndex=1:dNumImagingPlanes
+                vbPlaneSelect = true(dNumImagingPlanes,1);
+                vbPlaneSelect(dPlaneIndex) = false;
+                
+                obj.c1oInteractiveImagingPlanes{dPlaneIndex}.drawSliceLocations(obj.c1oInteractiveImagingPlanes(vbPlaneSelect));
+            end            
+        end
     end
     
-    methods (Access = private, Static = true) 
-        function dSelectedIndex = findAppObjectMouseIsOver(oFigureHandle, c1oAppObjects)
+    
+    methods (Access = private, Static = true)
+        
+        function dSelectedIndex = findAppObjectMouseIsOver(hFigureHandle, c1oAppObjects)
             %object = findAppObjectMouseIsOver(appObjects)
             
             vdMousePosition = get(0, 'PointerLocation');
@@ -491,21 +553,20 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             dSelectedIndex = 0;
             
             for dObjectIndex=1:length(c1oAppObjects)
-                if isMouseOverAppObject(oFigureHandle, c1oAppObjects{dObjectIndex}, vdMousePosition)
+                if InteractiveDicomViewerController.isMouseOverAppObject(hFigureHandle, c1oAppObjects{dObjectIndex}, vdMousePosition)
                     dSelectedIndex = dObjectIndex;
                     break;
                 end
             end
         end
+        
+        function bBool = isMouseOverAppObject(hFigureHandle, oAppObjectHandle, vdMouseAbsolutePosition)
+            vdAppAbsolutePosition = hFigureHandle.Position;
+            vdObjectRelativePosition = oAppObjectHandle.Position;
+            
+            objectAbsolutePosition = vdObjectRelativePosition + [vdAppAbsolutePosition(1:2), 0, 0];
+            
+            bBool = vdMouseAbsolutePosition(1) >= objectAbsolutePosition(1) && vdMouseAbsolutePosition(1) <= (objectAbsolutePosition(1) + objectAbsolutePosition(3)) && vdMouseAbsolutePosition(2) >= objectAbsolutePosition(2) && vdMouseAbsolutePosition(2) <= (objectAbsolutePosition(2) + objectAbsolutePosition(4));
+        end
     end
-end
-
-% ** HELPER FUNCTIONS **
-function bBool = isMouseOverAppObject(oFigureHandle, oAppObjectHandle, vdMouseAbsolutePosition)
-vdAppAbsolutePosition = oFigureHandle.Position;
-vdObjectRelativePosition = oAppObjectHandle.Position;
-
-objectAbsolutePosition = vdObjectRelativePosition + [vdAppAbsolutePosition(1:2), 0, 0];
-
-bBool = vdMouseAbsolutePosition(1) >= objectAbsolutePosition(1) && vdMouseAbsolutePosition(1) <= (objectAbsolutePosition(1) + objectAbsolutePosition(3)) && vdMouseAbsolutePosition(2) >= objectAbsolutePosition(2) && vdMouseAbsolutePosition(2) <= (objectAbsolutePosition(2) + objectAbsolutePosition(4));
 end

@@ -1,26 +1,36 @@
 classdef InteractiveImagingPlane < matlab.mixin.Copyable
     %InteractiveImagingPlane
     
-    properties
+    properties (Access = private)
         oAxesHandle
         oAxesLabelHandle = []
         oSliceLocationSpinnerHandle = []
         
-        oImageHandle
+        oFieldOfViewGeometry = FieldOfViewGeometry.empty
         
         chAxesTitle = ''
         
         c1c1oPlotHandles = {}
         c1oSliceLocationHandles = {}
         
+        % >>>>>>>>>>>>>>>>>> PLANE UNIT VECTORS <<<<<<<<<<<<<<<<<<<<<<<<<<<
+        
+        % target plane normal unit vectors
         vdTargetPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
         vdTargetPlaneRowUnitVector
         vdTargetPlaneColUnitVector
         
-        vdPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
-        vdPlaneRowUnitVector
-        vdPlaneColUnitVector
+        bAdjustPlaneUnitVectorsToMatchVolume = true
         
+        
+        
+        % >>>>>>>>>>>>>>>>>> FOV REFERENCE PLANE <<<<<<<<<<<<<<<<<<<<<<<<<<
+        
+                
+        dAxisWidth
+        dAxisHeight
+        
+        % check if flip is required
         bSliceFlipRequired = false
         bRowFlipRequired = false
         bColFlipRequired = false
@@ -52,16 +62,19 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
         
         dFieldOfViewIncrement_mm
         
-        vdFirstSliceFieldOfViewCentreCoords_mm
-        vdFirstSliceFieldOfViewCentreIndices
-        
     end
     
-    methods
+    methods (Access = public)
+        
         function obj = InteractiveImagingPlane(oAxesHandle, vdTargetPlaneNormalUnitVector, vdTargetPlaneRowUnitVector, vdTargetPlaneColUnitVector, varargin)
             %obj = InteractiveImagingPlane(oAxesHandle, vdTargetPlaneNormalUnitVector, vdTargetPlaneRowUnitVector, vdTargetPlaneColUnitVector, varargin)
                         
             obj.oAxesHandle = oAxesHandle;
+            
+            vdPos = oAxesHandle.Position;
+            
+            obj.dAxisWidth = vdPos(3);
+            obj.dAxisHeight = vdPos(4);
             
             obj.vdTargetPlaneNormalUnitVector = vdTargetPlaneNormalUnitVector; 
             obj.vdTargetPlaneRowUnitVector = vdTargetPlaneRowUnitVector;
@@ -78,6 +91,8 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                         obj.chAxesTitle = varargin{dVarIndex+1};
                     case 'SliceLocationSpinnerHandle'
                         obj.oSliceLocationSpinnerHandle = varargin{dVarIndex+1};
+                    case 'MatchPlaneToNearestVolumePlane'
+                        obj.bAdjustPlaneUnitVectorsToMatchVolume = varargin{dVarIndex+1};
                     otherwise
                         error(...
                             'InterativeImagingPlane:Constructor:InvalidNameValuePair',...
@@ -86,7 +101,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             end
         end
         
-        function [] = setNewHandles(obj, oNewInteractiveImagingPlane)
+        function setNewHandlesAndTargetPlaneUnitVectors(obj, oNewInteractiveImagingPlane)
             obj.chAxesTitle = oNewInteractiveImagingPlane.chAxesTitle;
             
             obj.oAxesHandle = oNewInteractiveImagingPlane.oAxesHandle;
@@ -96,6 +111,174 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vdTargetPlaneNormalUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneNormalUnitVector; 
             obj.vdTargetPlaneRowUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneRowUnitVector;
             obj.vdTargetPlaneColUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneColUnitVector;
+        end
+        
+        function [] = setDefaultValues(obj, oDicomImageVolume, vdFieldOfViewCentreCoords_mm)            
+            % get unit vectors of volume indes directions
+            [vdRowUnitVector, vdColUnitVector, vdSliceUnitVector] = oDicomImageVolume.getVolumeUnitVectors();
+            vdPixelSpacingVector_mm = oDicomImageVolume.getPixelSpacingVector;
+            
+            m2dUnitVectors = [vdRowUnitVector; vdColUnitVector; vdSliceUnitVector];
+            
+            % find slice unit vector
+            vdTargetPlaneNormalDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneNormalUnitVector, 3, 1), 2);
+            
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneNormalDotProducts));
+            
+            obj.dPlaneDimensionNumber = dClosestMatchIndex;
+            obj.vbPlaneDimensionMask = false(1,3);
+            obj.vbPlaneDimensionMask(dClosestMatchIndex) = true;
+            obj.dPlanePixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumSlices = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
+            
+            obj.bSliceFlipRequired = vdTargetPlaneNormalDotProducts(dClosestMatchIndex) < 0;
+             
+            if obj.bAdjustPlaneUnitVectorsToMatchVolume
+                if obj.bSliceFlipRequired
+                    vdPlaneNormalUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
+                else
+                    vdPlaneNormalUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
+                end
+            else
+                if obj.bSliceFlipRequired
+                    vdPlaneNormalUnitVector = -obj.vdTargetPlaneNormalUnitVector;
+                else
+                    vdPlaneNormalUnitVector = obj.vdTargetPlaneNormalUnitVector;
+                end
+            end
+            
+            % find row unit vector
+            vdTargetPlaneRowDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneRowUnitVector, 3, 1), 2);
+            
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneRowDotProducts));
+            
+            obj.dRowDimensionNumber = dClosestMatchIndex;
+            obj.vbRowDimensionMask = false(1,3);
+            obj.vbRowDimensionMask(dClosestMatchIndex) = true;
+            obj.dRowPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumRows = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
+            
+            obj.bRowFlipRequired = vdTargetPlaneRowDotProducts(dClosestMatchIndex) > 0;
+                         
+            if obj.bAdjustPlaneUnitVectorsToMatchVolume
+                if obj.bRowFlipRequired
+                    vdPlaneRowUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
+                else
+                    vdPlaneRowUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
+                end
+            else
+                if obj.bRowFlipRequired
+                    vdPlaneRowUnitVector = obj.vdTargetPlaneNormalUnitVector;
+                else
+                    vdPlaneRowUnitVector = -obj.vdTargetPlaneNormalUnitVector;
+                end
+            end
+            
+            % find col unit vector
+            vdTargetPlaneColDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneColUnitVector, 3, 1), 2);
+            
+            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneColDotProducts));
+            
+            obj.dColDimensionNumber = dClosestMatchIndex;
+            obj.vbColDimensionMask = false(1,3);
+            obj.vbColDimensionMask(dClosestMatchIndex) = true;  
+            obj.dColPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
+            obj.dVolumeNumCols = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
+            
+            obj.bColFlipRequired = vdTargetPlaneColDotProducts(dClosestMatchIndex) < 0;
+                         
+            if obj.bAdjustPlaneUnitVectorsToMatchVolume
+                if obj.bColFlipRequired
+                    vdPlaneColUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
+                else
+                    vdPlaneColUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
+                end
+            else
+                if obj.bColFlipRequired
+                    vdPlaneColUnitVector = -obj.vdTargetPlaneNormalUnitVector;
+                else
+                    vdPlaneColUnitVector = obj.vdTargetPlaneNormalUnitVector;
+                end
+            end   
+            
+            % set unit vectors into the slice labels
+            obj.setUnitVectorsInAxisLabels();
+            
+            % FOV values / slice index
+            
+            %vdFieldOfViewCentreCoords_mm
+            
+            if obj.bAdjustPlaneUnitVectorsToMatchVolume % make sure plane starts in the centre of a volume slice
+                [dI,dJ,dK] = oDicomImageVolume.getVoxelIndicesFromCoordinates(...
+                    vdFieldOfViewCentreCoords_mm(1), vdFieldOfViewCentreCoords_mm(2), vdFieldOfViewCentreCoords_mm(3));
+                
+                % get centre of voxels
+                dI = floor(dI)+0.5;
+                dJ = floor(dJ)+0.5;
+                dK = floor(dK)+0.5;
+                
+                % get centre of FOV coords in mm
+                [dX_mm,dY_mm,dZ_mm] = oDicomImageVolume.getCoordinatesFromVoxelIndices(dI, dJ, dK);
+                
+                vdFieldOfViewCentreCoords_mm = [dX_mm, dY_mm, dZ_mm];
+            end
+            
+            vdReferencePlaneOrigin_mm = [0 0 0];
+            obj.oFieldOfViewGeometry = FieldOfViewGeometry(vdPlaneRowUnitVector, vdPlaneColUnitVector, vdReferencePlaneOrigin_mm, vdFieldOfViewCentreCoords_mm);
+            
+            obj.oFieldOfViewGeometry.setFieldOfViewWidthHeightToFitVolume(oDicomImageVolume, obj.dAxisWidth, obj.dAxisHeight);
+            
+% % %             
+% % %             % get slice index bounds
+% % %             obj.dMinSliceIndex = 1;
+% % %             obj.dMaxSliceIndex = oDicomImageVolume.vdVolumeDimensions(obj.vbPlaneDimensionMask);
+% % %             
+% % %             obj.oSliceLocationSpinnerHandle.Limits = [obj.dMinSliceIndex, obj.dMaxSliceIndex];
+% % %             
+% % %             % from the centre view of field coords, find centre of 1st
+% % %             % slice for the plane
+% % %             [vdI,vdJ,vdK] = oDicomImageVolume.getVoxelIndicesFromCoordinates(...
+% % %                 vdFieldOfViewCentreCoords_mm(1), vdFieldOfViewCentreCoords_mm(2), vdFieldOfViewCentreCoords_mm(3));
+% % %             
+% % %             m2dFieldOfViewCentreIndices = [vdI,vdJ,vdK];
+% % %             
+% % %             if obj.bSliceFlipRequired
+% % %                 obj.dCurrentSliceIndex = obj.dMaxSliceIndex - floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber)) + 1;    
+% % %             else
+% % %                 obj.dCurrentSliceIndex = floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber));    
+% % %             end
+% % %             
+% % %             
+% % %             % set slice index to 1 to find FOV centre coords in 1st slice
+% % %             m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber) = 1;
+% % %             
+% % %             if obj.bRowFlipRequired
+% % %                 m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) = obj.dVolumeNumRows - m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) + 1;
+% % %             end
+% % %             
+% % %             if obj.bColFlipRequired
+% % %                 m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) = obj.dVolumeNumCols - m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) + 1;
+% % %             end
+% % %             
+% % %             m2dFieldOfViewCentreIndices = floor(m2dFieldOfViewCentreIndices);
+% % %             
+% % %             obj.vdFirstSliceFieldOfViewCentreIndices = m2dFieldOfViewCentreIndices;
+% % %             
+% % %             [vdX,vdY,vdZ] = oDicomImageVolume.getCoordinatesFromVoxelIndices(...
+% % %                 m2dFieldOfViewCentreIndices(1), m2dFieldOfViewCentreIndices(2), m2dFieldOfViewCentreIndices(3));
+% % %             
+% % %             obj.vdFirstSliceFieldOfViewCentreCoords_mm = [vdX,vdY,vdZ];
+% % %             
+% % %             % set FOV size and bounds
+% % %             obj.dMaxFieldOfView_mm = max(...
+% % %                 obj.dVolumeNumRows .* obj.dRowPixelSpacing_mm,...
+% % %                 obj.dVolumeNumCols .* obj.dColPixelSpacing_mm);
+% % %             
+% % %             obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm;
+% % %             
+% % %             obj.dMinFieldOfView_mm = min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
+% % %                         
+% % %             obj.dFieldOfViewIncrement_mm = floor(min(obj.dVolumeNumRows,obj.dVolumeNumCols)/25)*min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
         end
         
         function [] = zoomIn(obj, oDicomImageVolume)
@@ -142,7 +325,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             oHandle = obj.oAxesHandle;
         end
         
-        function [] = setSliceToSpinnerValue(obj, oDicomImageVolume, c1oDicomContours)
+        function setSliceIndexToSpinnerValue(obj)
             dSpinnerValue = obj.oSliceLocationSpinnerHandle.Value;
             
             if dSpinnerValue < obj.dMinSliceIndex
@@ -151,15 +334,12 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                 dSpinnerValue = obj.dMaxSliceIndex;
             end
             
-            obj.dCurrentSliceIndex = dSpinnerValue;
-            
-            obj.setImage(oDicomImageVolume);
-            obj.drawContours(c1oDicomContours);            
+            obj.dCurrentSliceIndex = dSpinnerValue;          
             
             obj.setSliceLocationSpinnerValue();
         end
         
-        function [] = setFullAxis(obj, oDicomImageVolume)
+        function setFullAxis(obj, oDicomImageVolume)
             obj.deletePlottedObjects();
             
             [m2dSlice, vdRowData, vdColData, vdRowLim, vdColLim] =...
@@ -183,7 +363,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.setSliceLocationSpinnerValue();
         end
         
-        function [] = setAxisLimits(obj, oDicomImageVolume)
+        function setAxisLimits(obj, oDicomImageVolume)
             [vdRowLim, vdColLim] = oDicomImageVolume.getRowAndColumnLimits(obj);
                         
             obj.oAxesHandle.XLim = vdColLim;
@@ -194,7 +374,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.oAxesHandle.CLim = [dMin, dMax];
         end
         
-        function [] = setImage(obj, oDicomImageVolume)            
+        function setImage(obj, oDicomImageVolume)            
             obj.deletePlottedObjects();
             
             m2dSlice = oDicomImageVolume.getSliceOnly(obj);
@@ -222,7 +402,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             end
         end
         
-        function [vdTopLeftIndices, cdBotRightIndices] = getCurrentFieldOfViewIndices(obj, oDicomImageVolume)
+        function [vdTopLeftIndices, vdBotRightIndices] = getCurrentFieldOfViewIndices(obj, oDicomImageVolume)
             vdFirstSliceFieldOfViewCentreIndices = obj.vdFirstSliceFieldOfViewCentreIndices;
             vdFirstSliceFieldOfViewCentreIndices(obj.dPlaneDimensionNumber) = obj.dCurrentSliceIndex;
             
@@ -240,126 +420,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                 m2dCoords(:,1), m2dCoords(:,2), m2dCoords(:,3));
             
             vdTopLeftIndices = [vdI(1), vdJ(1), vdK(1)];
-            cdBotRightIndices = [vdI(2), vdJ(2), vdK(2)];
-        end
-        
-        function [] = setDefaultValues(obj, oDicomImageVolume, vdFieldOfViewCentreCoords_mm)            
-            % get unit vectors of volume indes directions
-            [vdRowUnitVector, vdColUnitVector, cdSliceUnitVector] = oDicomImageVolume.getVolumeUnitVectors();
-            vdPixelSpacingVector_mm = oDicomImageVolume.getPixelSpacingVector;
-            
-            m2dUnitVectors = [vdRowUnitVector; vdColUnitVector; cdSliceUnitVector];
-            
-            % find slice unit vector
-            vdTargetPlaneNormalDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneNormalUnitVector, 3, 1), 2);
-            
-            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneNormalDotProducts));
-            
-            obj.dPlaneDimensionNumber = dClosestMatchIndex;
-            obj.vbPlaneDimensionMask = false(1,3);
-            obj.vbPlaneDimensionMask(dClosestMatchIndex) = true;
-            obj.dPlanePixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumSlices = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
-            
-            if vdTargetPlaneNormalDotProducts(dClosestMatchIndex) < 0
-                obj.bSliceFlipRequired = true;
-                obj.vdPlaneNormalUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
-            else
-                obj.bSliceFlipRequired = false;
-                obj.vdPlaneNormalUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
-            end
-            
-            % find row unit vector
-            vdTargetPlaneRowDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneRowUnitVector, 3, 1), 2);
-            
-            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneRowDotProducts));
-            
-            obj.dRowDimensionNumber = dClosestMatchIndex;
-            obj.vbRowDimensionMask = false(1,3);
-            obj.vbRowDimensionMask(dClosestMatchIndex) = true;
-            obj.dRowPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumRows = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
-            
-            if vdTargetPlaneRowDotProducts(dClosestMatchIndex) < 0
-                obj.bRowFlipRequired = false;
-                obj.vdPlaneRowUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
-            else
-                obj.bRowFlipRequired = true;
-                obj.vdPlaneRowUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
-            end
-            
-            % find col unit vector
-            vdTargetPlaneColDotProducts = dot(m2dUnitVectors, repmat(obj.vdTargetPlaneColUnitVector, 3, 1), 2);
-            
-            [~,dClosestMatchIndex] = max(abs(vdTargetPlaneColDotProducts));
-            
-            obj.dColDimensionNumber = dClosestMatchIndex;
-            obj.vbColDimensionMask = false(1,3);
-            obj.vbColDimensionMask(dClosestMatchIndex) = true;  
-            obj.dColPixelSpacing_mm = vdPixelSpacingVector_mm(dClosestMatchIndex);
-            obj.dVolumeNumCols = oDicomImageVolume.vdVolumeDimensions(dClosestMatchIndex);
-            
-            if vdTargetPlaneColDotProducts(dClosestMatchIndex) < 0
-                obj.bColFlipRequired = true;
-                obj.vdPlaneColUnitVector = -m2dUnitVectors(dClosestMatchIndex,:);
-            else
-                obj.bColFlipRequired = false;
-                obj.vdPlaneColUnitVector = m2dUnitVectors(dClosestMatchIndex,:);
-            end      
-            
-            % set unit vectors into the slice labels
-            obj.setUnitVectorsInAxisLabels();
-            
-            % get slice index bounds
-            obj.dMinSliceIndex = 1;
-            obj.dMaxSliceIndex = oDicomImageVolume.vdVolumeDimensions(obj.vbPlaneDimensionMask);
-            
-            obj.oSliceLocationSpinnerHandle.Limits = [obj.dMinSliceIndex, obj.dMaxSliceIndex];
-            
-            % from the centre view of field coords, find centre of 1st
-            % slice for the plane
-            [vdI,vdJ,vdK] = oDicomImageVolume.getVoxelIndicesFromCoordinates(...
-                vdFieldOfViewCentreCoords_mm(1), vdFieldOfViewCentreCoords_mm(2), vdFieldOfViewCentreCoords_mm(3));
-            
-            m2dFieldOfViewCentreIndices = [vdI,vdJ,vdK];
-            
-            if obj.bSliceFlipRequired
-                obj.dCurrentSliceIndex = obj.dMaxSliceIndex - floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber)) + 1;    
-            else
-                obj.dCurrentSliceIndex = floor(m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber));    
-            end
-            
-            
-            % set slice index to 1 to find FOV centre coords in 1st slice
-            m2dFieldOfViewCentreIndices(obj.dPlaneDimensionNumber) = 1;
-            
-            if obj.bRowFlipRequired
-                m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) = obj.dVolumeNumRows - m2dFieldOfViewCentreIndices(obj.dRowDimensionNumber) + 1;
-            end
-            
-            if obj.bColFlipRequired
-                m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) = obj.dVolumeNumCols - m2dFieldOfViewCentreIndices(obj.dColDimensionNumber) + 1;
-            end
-            
-            m2dFieldOfViewCentreIndices = floor(m2dFieldOfViewCentreIndices);
-            
-            obj.vdFirstSliceFieldOfViewCentreIndices = m2dFieldOfViewCentreIndices;
-            
-            [vdX,vdY,vdZ] = oDicomImageVolume.getCoordinatesFromVoxelIndices(...
-                m2dFieldOfViewCentreIndices(1), m2dFieldOfViewCentreIndices(2), m2dFieldOfViewCentreIndices(3));
-            
-            obj.vdFirstSliceFieldOfViewCentreCoords_mm = [vdX,vdY,vdZ];
-            
-            % set FOV size and bounds
-            obj.dMaxFieldOfView_mm = max(...
-                obj.dVolumeNumRows .* obj.dRowPixelSpacing_mm,...
-                obj.dVolumeNumCols .* obj.dColPixelSpacing_mm);
-            
-            obj.dCurrentFieldOfView_mm = obj.dMaxFieldOfView_mm;
-            
-            obj.dMinFieldOfView_mm = min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
-                        
-            obj.dFieldOfViewIncrement_mm = floor(min(obj.dVolumeNumRows,obj.dVolumeNumCols)/25)*min(obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm);
+            vdBotRightIndices = [vdI(2), vdJ(2), vdK(2)];
         end
         
         function [] = setUnitVectorsInAxisLabels(obj)
