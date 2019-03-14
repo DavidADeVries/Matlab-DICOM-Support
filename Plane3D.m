@@ -8,7 +8,7 @@ classdef Plane3D
         dPointOnPlaneTolerance = 1E-10
     end
     
-    properties (Access = private)
+    properties (SetAccess = private)
         vdPlaneOrigin
         
         vdPlaneRowUnitVector
@@ -96,6 +96,23 @@ classdef Plane3D
             else
                 bBool = isPointWithinBoundsByRowAndColCoords(obj, dRowCoord, dColCoord);
             end
+        end
+        
+        function vdNormalUnitVector = getPlaneNormalUnitVector(obj)
+            vdNormalVector = cross(obj.vdPlaneRowUnitVector, obj.vdPlaneColUnitVector);
+            vdNormalUnitVector = vdNormalVector ./ norm(vdNormalVector);
+        end
+        
+        function vdOrigin = getOrigin(obj)
+            vdOrigin = obj.vdPlaneOrigin;
+        end
+        
+        function vdRowUnitVector = getRowUnitVector(obj)
+            vdRowUnitVector = obj.vdPlaneRowUnitVector;
+        end
+        
+        function vdColUnitVector = getColUnitVector(obj)
+            vdColUnitVector = obj.vdPlaneColUnitVector;
         end
     end
     

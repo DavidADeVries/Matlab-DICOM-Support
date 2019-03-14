@@ -5,8 +5,11 @@ classdef DicomImageVolumeGeometry
     % *                            PROPERTIES                             *             2 Not Abstract -> X.2 Protected -> X.X.2 Constant
     % *********************************************************************                               X.3 Private
     
-    properties (Access = private)
+    properties (SetAccess = private)
         vdVolumeDimensions
+        
+        oTopSliceReferencePlane
+        
         vdImagePosition_mm
         
         vdSliceRowOrientationVector
@@ -27,27 +30,36 @@ classdef DicomImageVolumeGeometry
     methods (Access = public)
         
         function [obj, m3xVolume] = DicomImageVolumeGeometry(chDicomSeriesDir, varargin)
-            [vdVolumeDimensions, vdImagePosition_mm, vdSliceRowOrientationVector, vdSliceColOrientationVector, dRowPixelSpacing_mm, dColPixelSpacing_mm, dCentreOfSliceSeparation_mm, m3xVolume] = loadDicomSeriesGeometryAndVolumeFromDirectory(chDicomSeriesDir, varargin{:});
+            [vdVolumeDimensions, vdImagePosition_mm, vdSliceRowOrientationVector, vdSliceColOrientationVector, dRowPixelSpacing_mm, dColPixelSpacing_mm, dCentreOfSliceSeparation_mm, m3xVolume] =...
+                obj.loadDicomSeriesGeometryAndVolumeFromDirectory(chDicomSeriesDir, varargin{:});
+            
+            obj.oTopSliceReferencePlane = Plane3D(vdImagePosition_mm,...
+                vdSliceRowOrientationVector, vdSliceColOrientationVector,...
+                [-Inf,Inf], [-Inf,Inf]);
             
             obj.vdVolumeDimensions = vdVolumeDimensions;
             
-            obj.vdImagePosition_mm = vdImagePosition_mm;
-            
-            obj.vdSliceRowOrientationVector = vdSliceRowOrientationVector;
-            obj.vdSliceColOrientationVector = vdSliceColOrientationVector;
-            
             obj.dRowPixelSpacing_mm = dRowPixelSpacing_mm;
-            obj.dColPixelSpacing_mm = dColPixelSpacing_mm;
-            
+            obj.dColPixelSpacing_mm = dColPixelSpacing_mm;            
             obj.dCentreOfSliceSeparation_mm = dCentreOfSliceSeparation_mm;
         end
         
         function [vdX_mm, vdY_mm, vdZ_mm] = getCoordinatesFromVoxelIndices(obj, vdI, vdJ, vdK)
             [vdX_mm, vdY_mm, vdZ_mm] = obj.getCoordinatesFromVoxelIndicesCalculator(...
                 vdI, vdJ, vdK,...
-                obj.vdImagePosition_mm,...
-                obj.vdSliceRowOrientationVector, obj.vdSliceColOrientationVector, obj.vdSliceNormalVector,...
+                obj.oTopSliceReferencePlane.getOrigin(),...
+                obj.oTopSliceReferencePlane.getRowUnitVector(), obj.oTopSliceReferencePlane.getColUnitVector(),...
+                obj.oTopSliceReferencePlane.getPlaneNormalUnitVector(),...
                 obj.dRowPixelSpacing_mm, obj.dColPixelSpacing_mm, obj.dCentreOfSliceSeparation_mm);
+        end
+        
+        function vdCentreCoords_mm = getCentreCoordsOfVolume(obj)
+            vdCentreIndices = (obj.vdVolumeDimensions+1) / 2;
+            
+            [dX_mm,dY_mm,dZ_mm] = obj.getCoordinatesFromVoxelIndices(...
+                vdCentreIndices(1), vdCentreIndices(2), vdCentreIndices(3));
+            
+            vdCentreCoords_mm = [dX_mm,dY_mm,dZ_mm];
         end
         
         function c1oBoundingLines = getVolumeBoundingLines(obj)
@@ -83,13 +95,6 @@ classdef DicomImageVolumeGeometry
                 Line3D(vdVolumeCornerCoords(5,:), vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(5,:), [0, norm(vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(5,:))]),...
                 Line3D(vdVolumeCornerCoords(6,:), vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(6,:), [0, norm(vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(6,:))]),...
                 Line3D(vdVolumeCornerCoords(7,:), vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(7,:), [0, norm(vdVolumeCornerCoords(8,:)-vdVolumeCornerCoords(7,:))])};
-        end
-    end
-    
-    methods (Access = private, Static = false)
-        
-        function vdSliceNormalVector = getSliceNormalVector(obj)
-            vdSliceNormalVector = obj.sliceNormalVectorCalculator(obj.vdSliceRowOrientationVector, obj.vdSliceColOrientationVector);
         end
     end
     
@@ -216,8 +221,6 @@ classdef DicomImageVolumeGeometry
             end            
         end
         
-        
-        
         function [vdX_mm, vdY_mm, vdZ_mm] = getCoordinatesFromVoxelIndicesCalculator(vdI, vdJ, vdK, vdImagePosition_mm, vdSliceRowOrientationVector, vdSliceColOrientationVector, vdSliceNormalVector, dRowPixelSpacing_mm, dColPixelSpacing_mm, dCentreOfSliceSeparation_mm)
             %[x,y,z] = getCoordinatesFromVoxelIndices(i, j, k, imagePosition, imageOrientation, pixelSpacing, centreOfSliceSeparation)
             %
@@ -278,10 +281,6 @@ classdef DicomImageVolumeGeometry
             vdJ = ( vdSliceColOrientationVector(1).*(vdX_mm-vdImagePosition_mm(1)) + vdSliceColOrientationVector(2).*(vdY_mm-vdImagePosition_mm(2)) + vdSliceColOrientationVector(3).*(vdZ_mm-vdImagePosition_mm(3)) ) ./ dColPixelSpacing_mm;
             vdK = ( vdSliceNormalVector(1)        .*(vdX_mm-vdImagePosition_mm(1)) + vdSliceNormalVector(2)        .*(vdY_mm-vdImagePosition_mm(2)) + vdSliceNormalVector(3)        .*(vdZ_mm-vdImagePosition_mm(3)) ) ./ dCentreOfSliceSeparation_mm;
             
-        end
-        
-        function vdSliceNormalVector = sliceNormalVectorCalculator(vdSliceRowOrientationVector, vdSliceColOrientationVector)
-            vdSliceNormalVector = cross(vdSliceRowOrientationVector, vdSliceColOrientationVector);
         end
         
         function [vdCentreX_mm, vdCentreY_mm, vdCentreZ_mm, vdVertexX_mm, vdVertexY_mm, vdVertexZ_mm] = getVoxelCentreAndVerticesCoordinatesForDicomSeries(chDicomSeriesDir)

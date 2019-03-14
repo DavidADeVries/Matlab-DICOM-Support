@@ -8,7 +8,7 @@ classdef Line3D
         dPointOnLineTolerance = 1E-10
     end
     
-    properties (Access = private)
+    properties (SetAccess = private)
         vdOrigin
         vdUnitVector
         vdLineBounds

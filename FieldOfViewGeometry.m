@@ -2,7 +2,7 @@ classdef FieldOfViewGeometry < handle
     %UNTITLED4 Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties (Access = private)
+    properties (SetAccess = private)
         vdCurrentPlaneDistanceAlongFovCentreVector_mm
         
         dFovWidth_mm % cols
@@ -50,7 +50,7 @@ classdef FieldOfViewGeometry < handle
             % bounding line to find the min/max row/col coords
             for dBoundingLineIndex=1:length(c1oVolumeBoundingLines_mm)
                 [vdIntersectionPoint, dIntersectionPointRowCoord, dIntersectionPointColCoord, dDistanceAlongLineToIntersectionPoint] =...
-                    obj.oReferencePlane_mm.getIntersectionWithLine(c1oVolumeBoundingLines_mm{dBoundingLineIndex});
+                    obj.oReferencePlane_mm.findIntersectionWithLine(c1oVolumeBoundingLines_mm{dBoundingLineIndex});
                 
                 if ~isempty(vdIntersectionPoint) % intersection occurred
                     dMaxRowCoord_mm = max(dMaxRowCoord_mm, abs(dIntersectionPointRowCoord));

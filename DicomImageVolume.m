@@ -1,7 +1,7 @@
 classdef DicomImageVolume < matlab.mixin.Copyable
     %DicomImageVolume
     
-    properties (Access = private)
+    properties (SetAccess = private)
         m3xVolumeData % 3D matrix of data
         
         oDicomImageVolumeGeometry = DicomImageVolumeGeometry.empty        
@@ -52,6 +52,10 @@ classdef DicomImageVolume < matlab.mixin.Copyable
         
         function c1oBoundingLines = getVolumeBoundingLines(obj)
             c1oBoundingLines = obj.oDicomImageVolumeGeometry.getVolumeBoundingLines();
+        end
+        
+        function vdCentreCoords_mm = getCentreCoordsOfVolume(obj)
+            vdCentreCoords_mm = obj.oDicomImageVolumeGeometry.getCentreCoordsOfVolume();
         end
     end
        
@@ -245,15 +249,6 @@ classdef DicomImageVolume < matlab.mixin.Copyable
             vdColUnitVector = obj.vdImageOrientation(1:3);
             
             vdSliceUnitVector = cross(vdColUnitVector, vdRowUnitVector);
-        end
-        
-        function vdCentreCoords_mm = getCentreCoordsOfVolume(obj)
-            vdCentreIndices = (obj.vdVolumeDimensions+1) / 2;
-            
-            [dX,dY,dZ] = obj.getCoordinatesFromVoxelIndices(...
-                vdCentreIndices(1), vdCentreIndices(2), vdCentreIndices(3));
-            
-            vdCentreCoords_mm = [dX,dY,dZ];
         end
         
         function [dMin, dMax] = getThresholdMinMax(obj)
