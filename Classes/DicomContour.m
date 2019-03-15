@@ -3,6 +3,7 @@ classdef DicomContour < matlab.mixin.Copyable
     
     properties (Constant)
         dCoordsWithinSliceBound = 1 % 1 voxel index
+        dCoordsWithinSliceTieBound = 0.01
     end
     
     properties
@@ -58,6 +59,8 @@ classdef DicomContour < matlab.mixin.Copyable
             vdPolygonPlaneDimensionNumbers = zeros(dNumPolygons,1);
             
             dTotalNumIndices = 0;
+            
+            vbUndeterminedPolygonPlane = false(dNumPolygons,1);
 
             for dPolygonIndex=1:dNumPolygons
                 m2dCoords = obj.c1m2dPolygonCoords{dPolygonIndex};
@@ -70,14 +73,43 @@ classdef DicomContour < matlab.mixin.Copyable
                 [m2bPolygonPlaneDimensionMask, vdPolygonPlaneDimensionNumber] =...
                     findDimensionPlane(m2dVertexIndices);
                 
-                m2bPolygonPlaneDimensionMasks(dPolygonIndex,:) = m2bPolygonPlaneDimensionMask;
-                vdPolygonPlaneDimensionNumbers(dPolygonIndex) = vdPolygonPlaneDimensionNumber;
+                if isempty(polygonPlaneDimensionMask)
+                    vbUndeterminedPolygonPlane(dPolygonIndex) = true;
+                else
+                    m2bPolygonPlaneDimensionMasks(dPolygonIndex,:) = m2bPolygonPlaneDimensionMask;
+                    vdPolygonPlaneDimensionNumbers(dPolygonIndex) = vdPolygonPlaneDimensionNumber;
+                    
+                    c1m2dPolygonIndices{dPolygonIndex} = m2dVertexIndices(:,~m2bPolygonPlaneDimensionMask);
+                    vdPolygonPlaneIndices(dPolygonIndex) = mean(m2dVertexIndices(:,m2bPolygonPlaneDimensionMask));
+                end
                 
-                c1m2dPolygonIndices{dPolygonIndex} = m2dVertexIndices(:,~m2bPolygonPlaneDimensionMask);
-                vdPolygonPlaneIndices(dPolygonIndex) = mean(m2dVertexIndices(:,m2bPolygonPlaneDimensionMask));                
-
                 dTotalNumIndices = dTotalNumIndices + size(m2dCoords,1);
             end
+            
+            
+            % figure out the the undetermined planes
+            dMajorityPlaneDimensionNumber = mode(vdpolygonPlaneDimensionNumbers(~vbUndeterminedPolygonPlane));
+            
+            vbMajorityPlaneDimensionMask = false(1,3);
+            vbMajorityPlaneDimensionMask(dMajorityPlaneDimensionNumber) = true;
+            
+            for dPolygonIndex=1:dNumPolygons
+                if bUndeterminedPolygonPlane(dPolygonIndex)
+                    m2dCoords = obj.polygonCoords{dPolygonIndex};
+                    
+                    [vdI,vdJ,vdK] = volumeObject.getVoxelIndicesFromCoordinates(...
+                        m2dCoords(:,1), m2dCoords(:,2), m2dCoords(:,3));
+                    
+                    m2dVertexIndices = [vdI,vdJ,vdK];       
+                    
+                    m2bPolygonPlaneDimensionMasks(dPolygonIndex,:) = vbMajorityPlaneDimensionMask;
+                    vdPolygonPlaneDimensionNumbers(dPolygonIndex) = dMajorityPlaneDimensionNumber;
+                    
+                    c1m2dPolygonIndices{dPolygonIndex} = m2dVertexIndices(:,~vbMajorityPlaneDimensionMask);
+                    vdPolygonPlaneIndices(dPolygonIndex) = mean(m2dVertexIndices(:,vbMajorityPlaneDimensionMask));
+                end
+            end
+            
             
             m2dAllIndices = zeros(dTotalNumIndices,3);
             dInsertIndex = 1;
@@ -196,7 +228,7 @@ classdef DicomContour < matlab.mixin.Copyable
 end
 
 
-function [m2bPolygonPlaneDimensionMask, vdPolygonPlaneDimensionNumber] = findDimensionPlane(m2dVertexIndices)
+function [m2bPolygonPlaneDimensionMask, dPolygonPlaneDimensionNumber] = findDimensionPlane(m2dVertexIndices)
 % closed planar polygons are most often drawn within a single
 % plane. % Here we figure out which dimensions doesn't change
 
@@ -210,14 +242,20 @@ m2bPolygonPlaneDimensionMask = vdDimRange < DicomContour.dCoordsWithinSliceBound
 
 if sum(m2bPolygonPlaneDimensionMask) == 1 % single plane, good to go!
     vdCols = 1:3;
-    vdPolygonPlaneDimensionNumber = vdCols(m2bPolygonPlaneDimensionMask);
+    dPolygonPlaneDimensionNumber = vdCols(m2bPolygonPlaneDimensionMask);
 elseif sum(m2bPolygonPlaneDimensionMask) > 1
     % choose the col with the least variation as one drawn in
-    [~,vdPolygonPlaneDimensionNumber] = min(vdDimRange);
     
-    m2bPolygonPlaneDimensionMask = false(1,3);
-    
-    m2bPolygonPlaneDimensionMask(vdPolygonPlaneDimensionNumber) = true;
+    if sum(vdDimRange < DicomContour.dCoordsWithinSliceTieBound) > 1 % too close to tell
+        m2bPolygonPlaneDimensionMask = [];
+        dPolygonPlaneDimensionNumber = [];
+    else
+        [~,dPolygonPlaneDimensionNumber] = min(vdDimRange);
+        
+        m2bPolygonPlaneDimensionMask = false(1,3);
+        
+        m2bPolygonPlaneDimensionMask(dPolygonPlaneDimensionNumber) = true;
+    end
 else % ambiguous as to which plane the coords were drawn in
     error('Invalid polygon coords to find a drawn plane');
 end
