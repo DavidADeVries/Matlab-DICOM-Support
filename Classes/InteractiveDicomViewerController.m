@@ -11,8 +11,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         dFalseMouseClickBuffer_s = 0.25
         chLeftMouseClickLabel = 'normal'
         chRightMouseClickLabel = 'normal'
-        
-        bDefaultCentreOnContourCentroid = true % false will centre on image volume
     end
     
     properties (SetAccess = private)
@@ -28,7 +26,8 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         bLeftMouseButtonDown = false
         bRightMouseButtonDown = false
         
-        dContourIndexToCentreOn = 1
+        dContourIndexToCentreOn = 1        
+        bDefaultCentreOnContourCentroid = true % false will centre on image volume
         
         oFigureHandle = []
         
@@ -172,6 +171,14 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             end
         end
         
+        function setDefaultCentreOnContourCentroid(obj, bDefaultCentreOnContourCentroid)
+            obj.bDefaultCentreOnContourCentroid = bDefaultCentreOnContourCentroid;
+        end
+        
+        function setContourIndexToCentreOn(obj, dContourIndexToCentreOn)
+            obj.dContourIndexToCentreOn = dContourIndexToCentreOn;
+        end
+        
         function [] = setDicomImageVolume(obj, oDicomImageVolume)
             obj.oDicomImageVolume = oDicomImageVolume;
         end
@@ -180,7 +187,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
             oImageVolume = obj.oDicomImageVolume;
         end
         
-        function [] = setDicomContours(obj, c1oDicomContours)
+        function setDicomContours(obj, c1oDicomContours)
             obj.c1oDicomContours = c1oDicomContours;
         end
         

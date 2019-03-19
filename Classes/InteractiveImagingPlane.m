@@ -98,6 +98,29 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             obj.vdTargetPlaneColUnitVector = oNewInteractiveImagingPlane.vdTargetPlaneColUnitVector;
         end
         
+        function exportToPng(obj, chFilePathNoExtension)
+            hFig = figure;
+            hFig.Visible = 'off';
+            hFigAxes = axes(hFig);
+            vhAllChildren = obj.oAxesHandle.XAxis.Parent.Children;
+            copyobj(vhAllChildren, hFigAxes)
+            hFigAxes.XLim = obj.oAxesHandle.XLim;
+            hFigAxes.YLim = obj.oAxesHandle.YLim;
+            hFigAxes.ZLim = obj.oAxesHandle.ZLim;
+            hFigAxes.CLim = obj.oAxesHandle.CLim;
+            hFigAxes.DataAspectRatio = obj.oAxesHandle.DataAspectRatio;
+            colormap(hFigAxes,'gray');
+            hFigAxes.Color = [0 0 0];
+            xticks(hFigAxes, []);
+            yticks(hFigAxes, []);
+            hFig.Position = [1,1,5000,5000];
+                        
+            oFrame = getframe(hFigAxes);            
+            imwrite(oFrame.cdata, [chFilePathNoExtension, ' [', obj.chAxesTitle, '].png']);
+            
+            saveas(hFig, [chFilePathNoExtension, ' [', obj.chAxesTitle, ']'], 'epsc');
+        end
+        
         function [] = zoomIn(obj, oDicomImageVolume)
             obj.dCurrentFieldOfView_mm = max(obj.dMinFieldOfView_mm, obj.dCurrentFieldOfView_mm - obj.dFieldOfViewIncrement_mm);
             

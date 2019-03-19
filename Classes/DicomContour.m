@@ -6,6 +6,15 @@ classdef DicomContour < matlab.mixin.Copyable
     end
     
     properties
+        dContourNumber % used for accessing the RT Struct "Item_X" fields when needed
+        
+        chRoiName
+        chObservationLabel
+        chInterpretedType
+                
+        chRtStructFilePath
+        
+        
         c1m2dPolygonCoords = {} % cell array of nx3 double arrays (each array is a co-planar polyline, reshaped DICOM data)
         
         c1m2dPolygonIndices = {} % cell array of nx2 double arrays holding the indices of the voxels that the polygon vertices should be in. The common slice index is not includes. See "vdPolygonPlaneIndices"
@@ -21,10 +30,24 @@ classdef DicomContour < matlab.mixin.Copyable
     end
     
     methods
-        function obj = DicomContour(c1m2dPolygonCoords)
-            %obj = DicomContour(c1m2dPolygonCoords)
-                        
+        function obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, varargin)
+            %obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, )
+            %obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, oDicomImageVolume)
+            
+            obj.dContourNumber = dContourNumber;
+            
             obj.c1m2dPolygonCoords = c1m2dPolygonCoords;
+            
+            obj.chRoiName = chRoiName;
+            obj.chObservationLabel = chObservationLabel;
+            obj.chInterpretedType = chInterpretedType;
+            
+            obj.chRtStructFilePath = chRtStructFilePath;
+                        
+            if ~isempty(varargin)
+                oDicomImageVolume = varargin{1};
+                obj.setPolygonIndices(oDicomImageVolume);
+            end
         end
         
         function vdCentroidCoords = getContourCentroid(obj)
@@ -143,6 +166,34 @@ classdef DicomContour < matlab.mixin.Copyable
             end
         end
         
+        function setContourColour_rgb(obj, vdColour_rgb)
+            obj.vdContourColour_rgb = vdColour_rgb;
+        end
+        
+        function dContourNumber = getContourNumber(obj)
+            dContourNumber = obj.dContourNumber;
+        end
+        
+        function chRoiName = getRoiName(obj)
+            chRoiName = obj.chRoiName;
+        end
+        
+        function chObservationLabel = getObservationLabel(obj)
+            chObservationLabel = obj.chObservationLabel;
+        end
+        
+        function chInterpretedType = getInterpretedType(obj)
+            chInterpretedType = obj.chInterpretedType; 
+        end
+        
+        function chRgb = getContourColourString(obj)
+            chRgb = obj.rgbToStr(obj.vdContourColour_rgb);
+        end
+        
+        function vdContourColour_rgb = getContourColour_rgb(obj)
+            vdContourColour_rgb = obj.vdContourColour_rgb;
+        end
+        
         % ** FUNCTIONS FOR CONTOUR DISPLAY APP **
         function bBool = isValidForContourDisplay(obj, dContourGroupNumberForDisplay)
             if isempty(obj.contourValidationResult)
@@ -153,7 +204,60 @@ classdef DicomContour < matlab.mixin.Copyable
         end
     end
     
-    methods (Static)
+    methods (Access = public, Static)
+        
+        function c1oContours = loadContoursFromRtStructFile(chRtStructFilePath, varargin)
+            % c1oContours = loadContoursFromRtStructFile(chRtStructFilePath)
+            % c1oContours = loadContoursFromRtStructFile(chRtStructFilePath, oDicomImageVolume)
+            
+            stMeta = dicominfo(chRtStructFilePath);
+            
+            dNumContours = length(fieldnames(stMeta.ROIContourSequence));
+            
+            c1oContours = cell(dNumContours,1);
+            
+            for dContourIndex=1:dNumContours
+                chItemField = ['Item_',num2str(dContourIndex)];
+                
+                if ~isfield(stMeta.ROIContourSequence.(chItemField), 'ContourSequence')
+                    c1m2dPolygonCoords = {};
+                else
+                    stContourSequence = stMeta.ROIContourSequence.(chItemField).ContourSequence;
+                    
+                    dNumPolygons = length(fieldnames(stContourSequence));
+                    
+                    c1m2dPolygonCoords = cell(dNumPolygons,1);
+                    
+                    for dPolygonIndex=1:dNumPolygons
+                        vdCoords = stContourSequence.(['Item_', num2str(dPolygonIndex)]).ContourData;
+                        
+                        m2dCoords = reshape(vdCoords,[3,length(vdCoords)/3])';
+                        
+                        c1m2dPolygonCoords{dPolygonIndex} = m2dCoords;
+                    end
+                end
+                
+                c1oContours{dContourIndex} = DicomContour(...
+                    dContourIndex,...
+                    c1m2dPolygonCoords,...
+                    stMeta.StructureSetROISequence.(chItemField).ROIName,...
+                    stMeta.RTROIObservationsSequence.(chItemField).ROIObservationLabel,...
+                    stMeta.RTROIObservationsSequence.(chItemField).RTROIInterpretedType,...
+                    chRtStructFilePath,...
+                    varargin{:});
+            end
+        end
+        
+        function chStr = rgbToStr(vdRgb)
+            chStr = ['[',...
+                num2str(round(vdRgb(1),2)), ' ',...
+                num2str(round(vdRgb(2),2)), ' ',...
+                num2str(round(vdRgb(3),2)), ']'];
+        end
+        
+    end
+    
+    methods (Access = private, Static)
         function dDimensionNumber = getPredominatePolygonDimensionNumber(c1oDicomContours)
             dNumContours = length(c1oDicomContours);
             
