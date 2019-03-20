@@ -117,8 +117,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                         
             oFrame = getframe(hFigAxes);            
             imwrite(oFrame.cdata, [chFilePathNoExtension, ' [', obj.chAxesTitle, '].png']);
-            
-            saveas(hFig, [chFilePathNoExtension, ' [', obj.chAxesTitle, ']'], 'epsc');
         end
         
         function [] = zoomIn(obj, oDicomImageVolume)
