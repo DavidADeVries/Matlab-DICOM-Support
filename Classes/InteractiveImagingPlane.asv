@@ -11,7 +11,6 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
         chAxesTitle = ''
         
         c1c1oPlotHandles = {}
-        c1c1oContourLabelHandles = {}
         c1oSliceLocationHandles = {}
         
         vdTargetPlaneNormalUnitVector % [1 0 0] for Sagittal, [0 1 0] for Coronal, [0 0 1] for axial
@@ -395,33 +394,25 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
             
             dNumContours = length(c1oDicomContours);
             c1c1oPlotHandles = cell(dNumContours,1);
-            c1c1oContourLabelHandles = cell(dNumContours,1);
             
             for dContourIndex = 1:dNumContours
-                [c1c1oPlotHandles{dContourIndex}, c1c1oContourLabelHandles{dContourIndex}] = ...
-                    obj.drawContour(c1oDicomContours{dContourIndex}, oControllerObject);                
+                c1c1oPlotHandles{dContourIndex} = ...
+                    obj.drawContour(c1oDicomContours{dContourIndex}, oControllerObject);
             end
             
             obj.c1c1oPlotHandles = c1c1oPlotHandles;
-            obj.c1c1oContourLabelHandles = c1c1oContourLabelHandles;
         end
         
         function [] = deletePlottedObjects(obj)
             for dContourIndex=1:length(obj.c1c1oPlotHandles)
                 c1oContourPlotHandles = obj.c1c1oPlotHandles{dContourIndex};
-                c1oContourLabelHandles = obj.c1c1oContourLabelHandles{dContourIndex};
                 
                 for dPolygonIndex=1:length(c1oContourPlotHandles)
                     delete(c1oContourPlotHandles{dPolygonIndex});
                 end
-                
-                for dLabelIndex=1:length(c1oContourLabelHandles)
-                    delete(c1oContourLabelHandles{dLabelIndex});
-                end                
             end
             
             obj.c1c1oPlotHandles = {};
-            obj.c1c1oContourLabelHandles = {};
         end
         
         function [] = deleteSliceLocations(obj)
@@ -515,7 +506,7 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
     end
     
     methods(Access = private)
-        function [c1oPlotHandles, c1oContourLabelHandles] = drawContour(obj, oDicomContour, oControllerObject)
+        function c1oPlotHandles = drawContour(obj, oDicomContour, oControllerObject)
             [c1m2dPolygonVertexIndices, vdPolygonNumbers] = oDicomContour.getPolygonIndicesWithinImagingPlane(obj);
             
             dNumPolygons = length(c1m2dPolygonVertexIndices);
@@ -578,12 +569,13 @@ classdef InteractiveImagingPlane < matlab.mixin.Copyable
                         
                         c1oContourLabelHandles{dPolygonIndex} = text(obj.oAxesHandle,...
                             m2dColIndices(dMinColIndex), m2dRowIndices(dMinColIndex),...
-                            [num2str(oDicomContour.getContourNumber()), '-', num2str(dPolygonNumber), ' > '],...
-                            'FontSize',16,...
+                            [num2str(dPolygonNumber), ' > '],...
+                            'FontSize',12,...
                             'FontWeight','bold',...
                             'Color',oDicomContour.vdContourColour_rgb,...
                             'HorizontalAlignment','right',...
-                            'VerticalAlignment','middle');
+                            'VerticalAlginment','middle',...
+                            );
                     else
                         c1oContourLabelHandles{dPolygonIndex} = [];
                     end

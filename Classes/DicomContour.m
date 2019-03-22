@@ -14,8 +14,8 @@ classdef DicomContour < matlab.mixin.Copyable
                 
         chRtStructFilePath
         
-        
         c1m2dPolygonCoords = {} % cell array of nx3 double arrays (each array is a co-planar polyline, reshaped DICOM data)
+        vdPolygonNumbers
         
         c1m2dPolygonIndices = {} % cell array of nx2 double arrays holding the indices of the voxels that the polygon vertices should be in. The common slice index is not includes. See "vdPolygonPlaneIndices"
         m2dAllPolygonIndices = [] % nx3 double array holding all of indices concatenated for easy access
@@ -30,13 +30,14 @@ classdef DicomContour < matlab.mixin.Copyable
     end
     
     methods
-        function obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, varargin)
+        function obj = DicomContour(dContourNumber, c1m2dPolygonCoords, vdPolygonNumbers, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, varargin)
             %obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, )
             %obj = DicomContour(dContourNumber, c1m2dPolygonCoords, chRoiName, chObservationLabel, chInterpretedType,  chRtStructFilePath, oDicomImageVolume)
             
             obj.dContourNumber = dContourNumber;
             
             obj.c1m2dPolygonCoords = c1m2dPolygonCoords;
+            obj.vdPolygonNumbers = vdPolygonNumbers;
             
             obj.chRoiName = chRoiName;
             obj.chObservationLabel = chObservationLabel;
@@ -140,14 +141,20 @@ classdef DicomContour < matlab.mixin.Copyable
             obj.dMaxIndexToIndexDistance_mm = sqrt(max(vdMaxSquaredDistances_mm));
         end
         
-        function c1m2dPolygonIndices = getPolygonIndicesWithinImagingPlane(obj, oInteractiveImagingPlane)
+        function [c1m2dPolygonIndices, vdPolygonNumbers] = getPolygonIndicesWithinImagingPlane(obj, oInteractiveImagingPlane)
             dPlaneDimensionNumber = oInteractiveImagingPlane.dPlaneDimensionNumber;
             dSliceIndex = oInteractiveImagingPlane.getCurrentSliceIndex();
             
             c1m2dPolygonIndices = {};
+            vdPolygonNumbers = [];
             
-            if obj.vdPolygonPlaneDimensionNumber == dPlaneDimensionNumber            
-                c1m2dPolygonIndices = obj.c1m2dPolygonIndices( ((dSliceIndex - 0.5) <= obj.vdPolygonPlaneIndices) & (obj.vdPolygonPlaneIndices <= (dSliceIndex + 0.5)) );
+            if obj.vdPolygonPlaneDimensionNumber == dPlaneDimensionNumber    
+                vbSelectPolygon = ...
+                    ((dSliceIndex - 0.5) <= obj.vdPolygonPlaneIndices) &...
+                    (obj.vdPolygonPlaneIndices <= (dSliceIndex + 0.5));
+                
+                c1m2dPolygonIndices = obj.c1m2dPolygonIndices(vbSelectPolygon);
+                vdPolygonNumbers = obj.vdPolygonNumbers(vbSelectPolygon);
             end
         end
 
@@ -237,9 +244,12 @@ classdef DicomContour < matlab.mixin.Copyable
                     end
                 end
                 
+                vdPolygonNumbers = 1:length(c1m2dPolygonCoords);
+                
                 c1oContours{dContourIndex} = DicomContour(...
                     dContourIndex,...
                     c1m2dPolygonCoords,...
+                    vdPolygonNumbers,...
                     stMeta.StructureSetROISequence.(chItemField).ROIName,...
                     stMeta.RTROIObservationsSequence.(chItemField).ROIObservationLabel,...
                     stMeta.RTROIObservationsSequence.(chItemField).RTROIInterpretedType,...

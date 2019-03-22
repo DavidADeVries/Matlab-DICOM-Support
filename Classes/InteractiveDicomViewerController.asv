@@ -41,14 +41,11 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         oThresholdLevelEditFieldHandle = []
         
         bShowContourPolygonVertices = false
-        bShowContourPolygonNumbers = false
         dContourPolygonEdgeWidth = 0.5
-        dContourTransparency = 1
+        dContourTransparency = 100
         
-        hShowContourPolygonVertivesCheckbox = []
-        hShowContourPolygonNumbersCheckbox = []
         hContourTransparencyController = []
-        hContourPolygonEdgeWidthController = []
+        
     end
     
     methods (Access = protected)
@@ -105,15 +102,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                     case 'AutoScrollHotkey'
                         obj.chAutoScrollHotkey = varargin{dVarIndex+1};
                     case 'AutoZoomHotkey'    
-                        obj.chAutoZoomToggleHotkey = varargin{dVarIndex+1};  
-                    case 'ContourTransparencyControllerHandle'
-                        obj.hContourTransparencyController = varargin{dVarIndex+1};
-                    case 'ContourEdgeWidthControllerHandle'
-                        obj.hContourPolygonEdgeWidthController = varargin{dVarIndex+1};
-                    case 'ShowContourVerticesCheckboxHandle'
-                        obj.hShowContourPolygonVertivesCheckbox = varargin{dVarIndex+1};
-                    case 'ShowContourPolygonNumbersCheckboxHandle'
-                        obj.hShowContourPolygonNumbersCheckbox = varargin{dVarIndex+1};
+                        obj.chAutoZoomToggleHotkey = varargin{dVarIndex+1};        
                     otherwise
                         error(...
                             'InterativeDicomViewerController:Constructor:InvalidNameValuePair',...
@@ -186,22 +175,6 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                 obj.oThresholdMinEditFieldHandle = oNewMinEditField;
                 obj.oThresholdMaxEditFieldHandle = oNewMaxEditField;
             end
-        end
-        
-        function bShowContourPolygonVertices = getShowContourPolygonVertices(obj)
-            bShowContourPolygonVertices = obj.bShowContourPolygonVertices;
-        end
-        
-        function bShowContourPolygonNumbers = getShowContourPolygonNumbers(obj)
-            bShowContourPolygonNumbers = obj.bShowContourPolygonNumbers;
-        end
-        
-        function dContourPolygonEdgeWidth = getContourPolygonEdgeWidth(obj)
-            dContourPolygonEdgeWidth = obj.dContourPolygonEdgeWidth;
-        end
-        
-        function dContourTransparency = getContourTransparency(obj)
-            dContourTransparency = obj.dContourTransparency;
         end
         
         function setDefaultCentreOnContourCentroid(obj, bDefaultCentreOnContourCentroid)
@@ -461,29 +434,7 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
         end
         
         function contourTransparencyValueChanged(obj)
-            dTransparencyValue_Percent = obj.hContourTransparencyController.Value;
             
-            obj.dContourTransparency = dTransparencyValue_Percent ./ 100;
-            
-            obj.drawContours();
-        end
-        
-        function contourEdgeWidthValueChanged(obj)
-            obj.dContourPolygonEdgeWidth = obj.hContourPolygonEdgeWidthController.Value;
-            
-            obj.drawContours();
-        end
-        
-        function showContourVerticesValueChanged(obj)
-            obj.bShowContourPolygonVertices = obj.hShowContourPolygonVertivesCheckbox.Value;
-            
-            obj.drawContours();
-        end
-        
-        function showContourPolygonNumbersValueChanged(obj)
-            obj.bShowContourPolygonNumbers = obj.hShowContourPolygonNumbersCheckbox.Value;
-            
-            obj.drawContours();
         end
         
         function [] = uiFigureWindowScrollWheel(obj, oEvent)
@@ -511,10 +462,10 @@ classdef InteractiveDicomViewerController < matlab.mixin.Copyable
                 else % slice select
                     if dVerticalScrollCount == 1
                         % slice select down
-                        oInteractivePlane.decrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours, obj);
+                        oInteractivePlane.decrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours);
                     else
                         % slice select up
-                        oInteractivePlane.incrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours, obj);
+                        oInteractivePlane.incrementSlice(obj.oDicomImageVolume, obj.c1oDicomContours);
                     end
                     
                     obj.updateSliceLocations();
